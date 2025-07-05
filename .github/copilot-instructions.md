@@ -1,0 +1,3 @@
+<!-- Use this file to provide workspace-specific custom instructions to Copilot. For more details, visit https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
+
+This project is a modern, professional, and responsive seat booking web application for a workspace. The homepage displays an interactive floor layout with clearly marked sections (e.g., Section A, Section B, etc.). Clicking a section navigates to a dedicated page showing the seat arrangement for that section, where users can view or book available seats. The design is clean, modern, and suitable for real-world office use. Use React, TypeScript, Vite, and Tailwind CSS.
