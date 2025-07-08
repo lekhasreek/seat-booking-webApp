@@ -1,13 +1,7 @@
 
 // ...existing code...
 // Overlay for a single seat, with hover state for booked seats
-function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, selectedDate }: {
-  overlay: { id: string, left: number, top: number, width: number, height: number };
-  isBooked: boolean;
-  setShowBooking: React.Dispatch<React.SetStateAction<{ seatId: string | null, seatName: string, date: string } | null>>;
-  setBookingName: React.Dispatch<React.SetStateAction<string>>;
-  selectedDate: string;
-}) {
+function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, selectedDate }) {
   // Use lifted state for blue highlight
   const { activeSeat, selectedDateForActive, setActiveSeat } = React.useContext(SeatOverlayContext);
   const isActive = activeSeat === overlay.id && selectedDateForActive === selectedDate;
@@ -75,9 +69,9 @@ import SectionG from "../assets/Section-G.svg";
 
 // Context to lift active seat highlight state
 const SeatOverlayContext = React.createContext({
-  activeSeat: null as string | null,
+  activeSeat: null,
   selectedDateForActive: '',
-  setActiveSeat: (seatId: string | null, date: string) => {},
+  setActiveSeat: () => {},
 });
 
 // Only one SectionSeats component definition
@@ -88,7 +82,7 @@ const SeatOverlayContext = React.createContext({
 
 
 // Utility to extract seat positions from SVG <g> or <path> with id format Seat-A1, Seat-A2, ...
-function extractSeatsFromSVG(svgText: string) {
+function extractSeatsFromSVG(svgText) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgText, "image/svg+xml");
   // Find all <g> with id like Seat-A1, Seat-A2, ...
@@ -181,7 +175,7 @@ function extractSeatsFromSVG(svgText: string) {
   return seats;
 }
 
-const sectionSVGs: Record<string, string> = {
+const sectionSVGs = {
   A: SectionA,
   B: SectionB,
   C: SectionC,
@@ -193,38 +187,30 @@ const sectionSVGs: Record<string, string> = {
 
 // We'll dynamically extract seats for Section A from the SV
 
-const SectionSeats: React.FC = () => {
-  const [activeSeat, setActiveSeatState] = useState<string | null>(null);
+const SectionSeats = () => {
+  const [activeSeat, setActiveSeatState] = useState(null);
   const [selectedDateForActive, setSelectedDateForActive] = useState('');
-  const setActiveSeat = (seatId: string | null, date: string) => {
+  const setActiveSeat = (seatId, date) => {
     setActiveSeatState(seatId);
     setSelectedDateForActive(date);
   };
-  const { sectionId } = useParams<{ sectionId: string }>();
+  const { sectionId } = useParams();
   const navigate = useNavigate();
   // Bookings are now specific to date: { [date]: { [seatId]: true } }
-  const [bookedSeats, setBookedSeats] = useState<Record<string, Record<string, boolean>>>({});
+  const [bookedSeats, setBookedSeats] = useState({});
 
-interface SeatBox {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-const [seats, setSeats] = useState<SeatBox[]>([]);
+  const [seats, setSeats] = useState([]);
 
-  const [showBooking, setShowBooking] = useState<{ seatId: string | null, seatName: string, date: string } | null>(null);
+  const [showBooking, setShowBooking] = useState(null);
   const [bookingName, setBookingName] = useState('');
   // Store SVG text for inline rendering
-  const [svgText, setSvgText] = useState<string | null>(null);
+  const [svgText, setSvgText] = useState(null);
 
   // Refs for each seat rect or path (including Square-A* paths)
-  const seatRefs = useRef<{ [id: string]: SVGGraphicsElement | null }>({});
+  const seatRefs = useRef({});
 
   // Ref for the SVG container
-  const svgContainerRef = useRef<HTMLDivElement | null>(null);
+  const svgContainerRef = useRef(null);
 
   // Log screen coordinates for each seat after render (including Square-A* paths)
   useEffect(() => {
@@ -254,7 +240,7 @@ const [seats, setSeats] = useState<SeatBox[]>([]);
           setSvgText(svgText); // Save for inline rendering
           const seatBoxes = extractSeatsFromSVG(svgText);
           console.log('Extracted seats:', seatBoxes);
-          setSeats(Array.isArray(seatBoxes) ? (seatBoxes.filter(Boolean) as SeatBox[]) : []);
+          setSeats(Array.isArray(seatBoxes) ? seatBoxes.filter(Boolean) : []);
         });
     } else {
       setSeats([]);
@@ -266,7 +252,7 @@ const [seats, setSeats] = useState<SeatBox[]>([]);
     return <div className="p-8 text-center text-red-600">Invalid section</div>;
   }
 
-  const handleBook = (seatId: string, date: string) => {
+  const handleBook = (seatId, date) => {
     setBookedSeats((prev) => ({
       ...prev,
       [date]: {
@@ -282,8 +268,8 @@ const [seats, setSeats] = useState<SeatBox[]>([]);
 
   // Utility to extract all path elements with id like Square-A1, Square-A2, ... from the inline SVG
   // and map their SVG coordinates to container pixel coordinates (robust to scroll/resize)
-  function extractSquarePathsFromDOM(): Array<{ id: string, left: number, top: number, width: number, height: number }> {
-    const result: Array<{ id: string, left: number, top: number, width: number, height: number }> = [];
+  function extractSquarePathsFromDOM() {
+    const result = [];
     const container = svgContainerRef.current;
     if (!container) return result;
     const svg = container.querySelector('svg');
@@ -297,7 +283,7 @@ const [seats, setSeats] = useState<SeatBox[]>([]);
     // For each Square-A* path, get its bbox and map to container px
     const squarePaths = svg.querySelectorAll('path[id^="Square-A"]');
     squarePaths.forEach(path => {
-      const bbox = (path as SVGGraphicsElement).getBBox();
+      const bbox = path.getBBox();
       // Map SVG coords to px in container
       const left = ((bbox.x - vbX) / vbW) * renderedW;
       const top = ((bbox.y - vbY) / vbH) * renderedH;
@@ -309,7 +295,7 @@ const [seats, setSeats] = useState<SeatBox[]>([]);
   }
 
   // State to hold overlays for Square-A* paths
-  const [squareOverlays, setSquareOverlays] = useState<Array<{ id: string, left: number, top: number, width: number, height: number }>>([]);
+  const [squareOverlays, setSquareOverlays] = useState([]);
 
   // Extract overlays after SVG is rendered and on resize
   useEffect(() => {
@@ -475,7 +461,7 @@ const [seats, setSeats] = useState<SeatBox[]>([]);
                   value={selectedDate}
                   onChange={e => {
                     setSelectedDate(e.target.value);
-                    setShowBooking(showBooking => showBooking ? { ...showBooking, date: e.target.value } : null);
+                setShowBooking(showBooking => showBooking ? { ...showBooking, date: e.target.value } : null);
                   }}
                   style={{
                     border: '1px solid #ccc',

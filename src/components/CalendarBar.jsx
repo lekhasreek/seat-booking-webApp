@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const getDates = (start: Date, days: number) => {
+const getDates = (start, days) => {
   const arr = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(start);
@@ -10,13 +10,10 @@ const getDates = (start: Date, days: number) => {
   return arr;
 };
 
-const formatDay = (date: Date) => date.toLocaleDateString('en-US', { weekday: 'short' });
-const formatDate = (date: Date) => date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+const formatDay = (date) => date.toLocaleDateString('en-US', { weekday: 'short' });
+const formatDate = (date) => date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 
-const CalendarBar: React.FC<{
-  daysToShow?: number;
-  onDateChange?: (date: Date) => void;
-}> = ({ daysToShow = 7, onDateChange }) => {
+const CalendarBar = ({ daysToShow = 7, onDateChange }) => {
   const [start, setStart] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
@@ -35,7 +32,7 @@ const CalendarBar: React.FC<{
     newStart.setDate(start.getDate() + 1);
     setStart(newStart);
   };
-  const handleSelect = (date: Date) => {
+  const handleSelect = (date) => {
     setSelected(date);
     onDateChange && onDateChange(date);
   };

@@ -1,13 +1,7 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 
-interface SidebarLinkProps {
-  to: string;
-  label: string;
-  selected?: boolean;
-}
-
-const SidebarLink: React.FC<SidebarLinkProps> = ({ to, label, selected }) => {
+const SidebarLink = ({ to, label, selected }) => {
   const location = useLocation();
   const isActive = selected || location.pathname === to;
   return (

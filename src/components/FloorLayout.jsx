@@ -1,5 +1,5 @@
 import React from "react";
-import Header from "./Header.tsx";
+import Header from "./Header";
 import Sidebar from "./Sidebar";
 // import CalendarBar from "./CalendarBar";
 import { useNavigate } from "react-router-dom";
@@ -15,7 +15,7 @@ const sectionAreas = [
   { id: "G", label: "Section G", svgId: "Section-G" },
 ];
 
-const FloorLayout: React.FC = () => {
+const FloorLayout = () => {
   const navigate = useNavigate();
   // Inline SVG import for interactivity
   return (
