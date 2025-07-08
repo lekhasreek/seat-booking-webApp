@@ -8,6 +8,9 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
   setBookingName: React.Dispatch<React.SetStateAction<string>>;
   selectedDate: string;
 }) {
+  // Use lifted state for blue highlight
+  const { activeSeat, selectedDateForActive, setActiveSeat } = React.useContext(SeatOverlayContext);
+  const isActive = activeSeat === overlay.id && selectedDateForActive === selectedDate;
   return (
     <div
       style={{
@@ -16,7 +19,7 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
         top: overlay.top,
         width: overlay.width,
         height: overlay.height,
-        background: isBooked ? '#d1d5db' : '#fff',
+        background: isBooked ? '#d1d5db' : isActive ? '#42b0f4' : '#fff',
         border: '2px solid #000',
         borderRadius: 6,
         zIndex: 10,
@@ -29,9 +32,11 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
         fontSize: 16,
         cursor: isBooked ? 'not-allowed' : 'pointer',
         opacity: isBooked ? 0.7 : 1,
+        transition: 'background 0.15s',
       }}
       onClick={() => {
         if (!isBooked) {
+          setActiveSeat(overlay.id, selectedDate);
           setShowBooking({
             seatId: overlay.id,
             seatName: overlay.id.replace(/^Square-/, ''),
@@ -67,6 +72,13 @@ import SectionE from "../assets/Section-E.svg";
 import SectionF from "../assets/Section-F.svg";
 import SectionG from "../assets/Section-G.svg";
 
+
+// Context to lift active seat highlight state
+const SeatOverlayContext = React.createContext({
+  activeSeat: null as string | null,
+  selectedDateForActive: '',
+  setActiveSeat: (seatId: string | null, date: string) => {},
+});
 
 // Only one SectionSeats component definition
 // (Removed duplicate SectionSeats definition)
@@ -182,6 +194,12 @@ const sectionSVGs: Record<string, string> = {
 // We'll dynamically extract seats for Section A from the SV
 
 const SectionSeats: React.FC = () => {
+  const [activeSeat, setActiveSeatState] = useState<string | null>(null);
+  const [selectedDateForActive, setSelectedDateForActive] = useState('');
+  const setActiveSeat = (seatId: string | null, date: string) => {
+    setActiveSeatState(seatId);
+    setSelectedDateForActive(date);
+  };
   const { sectionId } = useParams<{ sectionId: string }>();
   const navigate = useNavigate();
   // Bookings are now specific to date: { [date]: { [seatId]: true } }
@@ -323,7 +341,8 @@ const [seats, setSeats] = useState<SeatBox[]>([]);
   // <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
 
   return (
-    <div style={{ background: '#f7fafd', minHeight: '100vh', display: 'flex' }}>
+    <SeatOverlayContext.Provider value={{ activeSeat, selectedDateForActive, setActiveSeat }}>
+      <div style={{ background: '#f7fafd', minHeight: '100vh', display: 'flex' }}>
       {/* Sidebar (fixed, only rendered once) */}
       <Sidebar />
       {/* Main Content Area */}
@@ -503,8 +522,11 @@ const [seats, setSeats] = useState<SeatBox[]>([]);
                 >
                   {showBooking && showBooking.seatId && bookedSeats[selectedDate]?.[showBooking.seatId] ? 'Already Booked' : 'Book'}
                 </button>
-                <button
-                  onClick={() => setShowBooking(null)}
+            <button
+              onClick={() => {
+                setShowBooking(null);
+                setActiveSeat(null, '');
+              }}
                   style={{
                     background: 'none',
                     color: '#2563eb',
@@ -525,6 +547,7 @@ const [seats, setSeats] = useState<SeatBox[]>([]);
         </div>
       </div>
     </div>
+    </SeatOverlayContext.Provider>
   );
 }
 
