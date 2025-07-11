@@ -1,5 +1,6 @@
+
 // Overlay for a single seat, with hover state for booked seats
-function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, selectedDate }) {
+function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, selectedDate, setHoverBookingDetails = () => {} }) {
   // Use lifted state for blue highlight
   const { activeSeat, selectedDateForActive, setActiveSeat } = React.useContext(SeatOverlayContext);
   const isActive = activeSeat === overlay.id && selectedDateForActive === selectedDate;
@@ -65,6 +66,7 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
 }
 
 import React, { useState, useRef, useEffect } from "react";
+import { supabase } from '../supabaseClient';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Header from "./Header";
@@ -271,54 +273,104 @@ const SectionSeats = () => {
   // Add this state for time slots
   const [selectedTimeSlots, setSelectedTimeSlots] = useState([]);
 
-  const handleBook = (seatId, date) => {
+  // Async booking handler: insert into Supabase Bookings table
+  const handleBook = async (seatId, date) => {
     if (selectedTimeSlots.length === 0) return;
-    setBookedSeats(prev => ({
-      ...prev,
-      [date]: {
-        ...(prev[date] || {}),
-        [seatId]: { booked: true, timeSlots: selectedTimeSlots, name: bookingName },
-      },
-    }));
-    setShowBooking(null);
-    setBookingName('');
-    setSelectedTimeSlots([]);
-    toast.success(
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 32,
-          height: 32,
-          borderRadius: '50%',
-          background: '#22c55e',
-          color: '#fff',
-          fontSize: 22,
-        }}>
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="10" cy="10" r="10" fill="#22c55e"/>
-            <path d="M6 10.5L9 13.5L14 8.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </span>
-        <span style={{ fontSize: 18, color: '#444' }}>Seat booked successfully</span>
-      </div>,
-      {
-        position: 'top-right',
-        autoClose: 2500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        style: {
-          minWidth: 320,
-          borderRadius: 8,
-          boxShadow: '0 4px 24px rgba(9, 91, 190, 0.13)',
-        },
-        icon: false,
+    try {
+      // Get seatName and seatNumber
+      const seatName = showBooking?.seatName || seatId;
+      console.log('Booking seatName (from overlay/modal):', seatName);
+      // DEBUG: Print all Seat_Number values in Seats table before lookup
+      const { data: allSeats, error: allSeatsError } = await supabase
+        .from('Seats')
+        .select('Seat_Number');
+      if (allSeatsError) {
+        console.error('Error fetching all Seat_Number values:', allSeatsError);
+      } else {
+        console.log('All Seat_Number values in Seats table:', allSeats?.map(s => JSON.stringify(s.Seat_Number)));
       }
-    );
+      // Use the full seat name as in DB (e.g., 'Square-A1')
+      // Fetch Seat_id (UUID) from Seats table using Seat_Name
+      console.log('Looking up Seat_Number in DB:', seatName, '| typeof:', typeof seatName, '| length:', seatName?.length);
+      const { data: seatRows, error: seatError } = await supabase
+        .from('Seats')
+        .select('Seat_id')
+        .eq('Seat_Number', seatName)
+        .limit(1);
+      console.log('Supabase seatRows:', seatRows);
+      console.log('Supabase seatError:', seatError);
+      if (seatError) throw seatError;
+      if (!seatRows || seatRows.length === 0) throw new Error('Seat not found in Seats table');
+      const seatUUID = seatRows[0].Seat_id;
+
+      // Get current Supabase Auth user
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!userData || !userData.user || !userData.user.id) throw new Error('User not authenticated');
+      const userId = userData.user.id;
+
+      for (const timeslot of selectedTimeSlots) {
+        const { error } = await supabase.from('Bookings').insert([
+          {
+            created_at: new Date(date),
+            Seat_Number: seatName,
+            Seat_id: seatUUID,
+            User_id: userId,
+            Timeslot: timeslot,
+            Name: bookingName,
+          },
+        ]);
+        if (error) throw error;
+      }
+      setBookedSeats(prev => ({
+        ...prev,
+        [date]: {
+          ...(prev[date] || {}),
+          [seatId]: { booked: true, timeSlots: selectedTimeSlots, name: bookingName },
+        },
+      }));
+      setShowBooking(null);
+      setBookingName('');
+      setSelectedTimeSlots([]);
+      toast.success(
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            background: '#22c55e',
+            color: '#fff',
+            fontSize: 22,
+          }}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="10" cy="10" r="10" fill="#22c55e"/>
+              <path d="M6 10.5L9 13.5L14 8.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+          <span style={{ fontSize: 18, color: '#444' }}>Seat booked successfully</span>
+        </div>,
+        {
+          position: 'top-right',
+          autoClose: 2500,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          style: {
+            minWidth: 320,
+            borderRadius: 8,
+            boxShadow: '0 4px 24px rgba(9, 91, 190, 0.13)',
+          },
+          icon: false,
+        }
+      );
+    } catch (err) {
+      toast.error('Failed to book seat: ' + err.message);
+    }
   };
 
 
@@ -590,7 +642,7 @@ const SectionSeats = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (
                       bookingName.trim() &&
                       showBooking &&
@@ -599,7 +651,7 @@ const SectionSeats = () => {
                       selectedTimeSlots.length > 0 &&
                       !bookedSeats[selectedDate]?.[showBooking.seatId]
                     ) {
-                      handleBook(showBooking.seatId, selectedDate);
+                      await handleBook(showBooking.seatId, selectedDate);
                     }
                   }}
                   style={{

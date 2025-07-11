@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 const cprimeLogoSrc = '/cprime-logo.png';
 import './Login.css';
 
@@ -8,17 +10,24 @@ const Login = ({ onLogin, onShowSignup }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      onLogin('demo-user', email, 'user');
-      setLoading(false);
+    setError('');
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (error) {
+      setError(error.message);
+    } else if (data && data.user) {
+      onLogin(data.user.id, data.user.email, 'user');
       navigate('/');
-    }, 1000);
+    } else {
+      setError('Login failed.');
+    }
   };
 
   return (
@@ -66,11 +75,11 @@ const Login = ({ onLogin, onShowSignup }) => {
         <button type="submit" disabled={loading}>
           {loading ? 'Logging in...' : 'Login'}
         </button>
+        {error && <div style={{ color: 'red', marginTop: 8 }}>{error}</div>}
       </form>
 
-      <div className="login-footer">
-        <p>
-          Don't have an account?{' '}
+      <div className="login-footer" style={{ textAlign: 'center', marginTop: 16 }}>
+        <span>Don't have an account?{' '}
           <button
             type="button"
             className="link-button"
@@ -79,7 +88,7 @@ const Login = ({ onLogin, onShowSignup }) => {
           >
             Sign up here
           </button>
-        </p>
+        </span>
       </div>
     </div>
   );

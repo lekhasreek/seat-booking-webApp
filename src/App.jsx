@@ -1,82 +1,105 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import FloorLayout from "./components/FloorLayout";
 import SectionSeats from "./components/SectionSeats";
 import Login from "./components/Login";
-import RequireAuth from "./components/RequireAuth";
 import Signup from "./components/Signup";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { supabase } from "./supabaseClient";
+
 
 const App = () => {
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
-  });
+  const [user, setUser] = useState(null);
   const [showSignup, setShowSignup] = useState(false);
+  const [userId, setUserId] = useState(null); // User_id from Users table
 
-  // On mount, sync user from localStorage
+
+  // Ensure user exists in Users table, insert if not, then fetch User_id
+  const upsertAndFetchUserId = async (authUser) => {
+    if (!authUser) return;
+    const name = authUser.user_metadata?.full_name || authUser.user_metadata?.name || '';
+    const email = authUser.email || '';
+    // Try to upsert user (insert or update if exists)
+    const { error: upsertError } = await supabase.from('Users').upsert([
+      {
+        User_id: authUser.id,
+        Name: name,
+        email: email,
+        encrypted_password: '' // leave blank, handled by Supabase Auth
+      }
+    ], { onConflict: ['User_id'] });
+    if (upsertError) {
+      console.error('Error upserting user:', upsertError);
+    }
+    // Fetch user row
+    const { data, error } = await supabase
+      .from('Users')
+      .select('User_id')
+      .eq('User_id', authUser.id)
+      .single();
+    if (error) {
+      console.error('Error fetching user after upsert:', error);
+    }
+    if (data && data.User_id) {
+      setUserId(data.User_id);
+    } else {
+      setUserId(null);
+    }
+  };
+
+
   useEffect(() => {
-    const stored = localStorage.getItem('user');
-    if (stored && !user) setUser(JSON.parse(stored));
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data?.user || null);
+      upsertAndFetchUserId(data?.user);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      upsertAndFetchUserId(session?.user);
+    });
+    return () => { listener?.subscription?.unsubscribe && listener.subscription.unsubscribe(); };
   }, []);
 
-  // On successful login, set user and redirect to main page
-  const handleLogin = (id, email, role) => {
-    const userObj = { id, email, role };
-    setUser(userObj);
-    localStorage.setItem('user', JSON.stringify(userObj));
-    // window.location.href = "/"; // let router handle navigation
-  };
+  if (!user) {
+    return (
+      <Router>
+        {showSignup ? (
+          <Signup
+            onBackToLogin={() => setShowSignup(false)}
+            onSignupSuccess={() => setShowSignup(false)}
+          />
+        ) : (
+          <Login
+            onLogin={() => supabase.auth.getUser().then(({ data }) => {
+              setUser(data?.user || null);
+              upsertAndFetchUserId(data?.user);
+            })}
+            onShowSignup={() => setShowSignup(true)}
+          />
+        )}
+      </Router>
+    );
+  }
 
-  // Show signup page
-  const handleShowSignup = () => {
-    setShowSignup(true);
-  };
-  // Show login page
-  const handleBackToLogin = () => {
-    setShowSignup(false);
-  };
-  // After signup, show login page
-  const handleSignupSuccess = () => {
-    setShowSignup(false);
-  };
-
-  // Optionally, add a logout handler to clear localStorage
-  // const handleLogout = () => {
-  //   setUser(null);
-  //   localStorage.removeItem('user');
-  // };
+  // Example: Fetch bookings for this userId
+  // useEffect(() => {
+  //   if (userId) {
+  //     supabase.from('Bookings').select('*').eq('User_id', userId).then(({ data }) => {
+  //       // Do something with bookings
+  //     });
+  //   }
+  // }, [userId]);
 
   return (
     <>
       <ToastContainer position="top-right" />
       <Router>
         <Routes>
-          <Route path="/login" element={
-            showSignup ? (
-              <Signup onBackToLogin={handleBackToLogin} onSignupSuccess={handleSignupSuccess} />
-            ) : (
-              <Login onLogin={handleLogin} onShowSignup={handleShowSignup} />
-            )
-          } />
-          <Route
-            path="/"
-            element={
-              <RequireAuth isAuthenticated={!!user}>
-                <FloorLayout />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/section/:sectionId"
-            element={
-              <RequireAuth isAuthenticated={!!user}>
-                <SectionSeats />
-              </RequireAuth>
-            }
-          />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<FloorLayout userId={userId} />} />
+          <Route path="/section/:sectionId" element={<SectionSeats userId={userId} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </>

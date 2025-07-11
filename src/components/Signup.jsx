@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
+import { supabase } from '../supabaseClient';
 const cprimeLogoSrc = '/cprime-logo.png';
 import './Signup.css';
 
@@ -77,33 +78,42 @@ const Signup = ({ onBackToLogin, onSignupSuccess }) => {
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      toast.success('Sign up successful! Please login with your credentials.');
-      onSignupSuccess();
-      setLoading(false);
-    }, 1000);
-
-    // Retain backend logic for future use (commented out)
-    /*
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          email: formData.email.trim().toLowerCase(),
-          password: formData.password,
-        }),
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+        options: {
+          data: { name: formData.name.trim() }
+        }
       });
-      const data = await response.json();
-      if (response.ok && data.success) {
-        toast.success('Sign up successful! Please login with your credentials.');
-        onSignupSuccess();
+      console.log('Signup response data:', data);
+      if (error) {
+        toast.error(error.message || 'Sign up failed. Please try again.');
       } else {
-        toast.error(data.message || 'Sign up failed. Please try again.');
+        // Insert user into Users table
+        const user = data?.user;
+        if (!user) {
+          toast.error('Signup succeeded but no user object returned. Check if email confirmation is required.');
+          console.error('No user object in signup response:', data);
+        } else {
+          const { id, email } = user;
+          const { error: insertError } = await supabase.from('Users').insert([
+            {
+              User_id: id,
+              email,
+              Name: formData.name.trim(),
+              encrypted_password: null // or provide a value if required
+            }
+          ]);
+          if (insertError) {
+            toast.error('User created but failed to add to Users table: ' + insertError.message);
+            console.error('Insert Users error:', insertError);
+          }
+          toast.success('Sign up successful! Redirecting to login...');
+          setTimeout(() => {
+            onSignupSuccess();
+          }, 2000); // 2 second delay before redirect
+        }
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -111,7 +121,6 @@ const Signup = ({ onBackToLogin, onSignupSuccess }) => {
     } finally {
       setLoading(false);
     }
-    */
   };
 
   return (
