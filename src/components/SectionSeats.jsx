@@ -65,6 +65,8 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
 }
 
 import React, { useState, useRef, useEffect } from "react";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import CalendarBar from "./CalendarBar";
@@ -269,17 +271,54 @@ const SectionSeats = () => {
   // Add this state for time slots
   const [selectedTimeSlots, setSelectedTimeSlots] = useState([]);
 
-  const handleBook = (seatId, date, timeSlots) => {
+  const handleBook = (seatId, date) => {
+    if (selectedTimeSlots.length === 0) return;
     setBookedSeats(prev => ({
       ...prev,
       [date]: {
         ...(prev[date] || {}),
-        [seatId]: { booked: true, timeSlots, name: bookingName },
+        [seatId]: { booked: true, timeSlots: selectedTimeSlots, name: bookingName },
       },
     }));
     setShowBooking(null);
     setBookingName('');
     setSelectedTimeSlots([]);
+    toast.success(
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 32,
+          height: 32,
+          borderRadius: '50%',
+          background: '#22c55e',
+          color: '#fff',
+          fontSize: 22,
+        }}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="10" cy="10" r="10" fill="#22c55e"/>
+            <path d="M6 10.5L9 13.5L14 8.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </span>
+        <span style={{ fontSize: 18, color: '#444' }}>Seat booked successfully</span>
+      </div>,
+      {
+        position: 'top-right',
+        autoClose: 2500,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        style: {
+          minWidth: 320,
+          borderRadius: 8,
+          boxShadow: '0 4px 24px rgba(9, 91, 190, 0.13)',
+        },
+        icon: false,
+      }
+    );
   };
 
 
@@ -483,43 +522,50 @@ const SectionSeats = () => {
                   zIndex: 50,
                   background: '#fff',
                   border: '2px solid #2563eb',
-                  borderRadius: 12,
-                  boxShadow: '0 4px 24px #0002',
-                  padding: 20,
-                  minWidth: 220,
+                  borderRadius: 8,
+                  padding: 18,
+                  transform: 'translate(-50%, -50%)',
+                  minWidth: 260,
+                  minHeight: 0,
+                  width: 'auto',
+                  height: 'auto',
                   display: 'flex',
                   flexDirection: 'column',
+                  justifyContent: 'center',
                   alignItems: 'center',
-                  transform: 'translate(-50%, -50%)',
+                  boxShadow: '0 4px 24px rgba(9, 91, 190, 0.13)'
                 }}
               >
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>Book {showBooking.seatName}</div>
+                <div style={{ marginBottom: 16, fontWeight: 600, fontSize: 18 }}>Book Seat {showBooking.seatName}</div>
                 <input
                   type="text"
                   placeholder="Your Name"
                   value={bookingName}
                   onChange={e => setBookingName(e.target.value)}
                   style={{
-                    border: '1px solid #ccc',
-                    borderRadius: 6,
-                    padding: '6px 10px',
-                    marginBottom: 12,
                     width: '100%',
+                    padding: '6px 10px',
+                    marginBottom: 10,
+                    border: '1px solid #ccc',
+                    borderRadius: 4,
+                    fontSize: 15
                   }}
+                  autoFocus
                 />
                 <input
                   type="date"
                   value={selectedDate}
-                  onChange={e => {
-                    setSelectedDate(e.target.value);
-                    setShowBooking(showBooking => showBooking ? { ...showBooking, date: e.target.value } : null);
-                  }}
+                  readOnly
                   style={{
-                    border: '1px solid #ccc',
-                    borderRadius: 6,
-                    padding: '6px 10px',
-                    marginBottom: 12,
                     width: '100%',
+                    padding: '6px 10px',
+                    marginBottom: 10,
+                    border: '1px solid #ccc',
+                    borderRadius: 4,
+                    fontSize: 15,
+                    background: '#f3f4f6',
+                    color: '#222',
+                    cursor: 'not-allowed'
                   }}
                 />
                 <div style={{ width: '100%', marginBottom: 12 }}>
@@ -553,7 +599,7 @@ const SectionSeats = () => {
                       selectedTimeSlots.length > 0 &&
                       !bookedSeats[selectedDate]?.[showBooking.seatId]
                     ) {
-                      handleBook(showBooking.seatId, selectedDate, selectedTimeSlots);
+                      handleBook(showBooking.seatId, selectedDate);
                     }
                   }}
                   style={{
