@@ -5,7 +5,8 @@ import SectionSeats from "./components/SectionSeats";
 import Login from "./components/Login";
 import RequireAuth from "./components/RequireAuth";
 import Signup from "./components/Signup";
-import { Toaster } from 'react-hot-toast';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const App = () => {
   const [user, setUser] = useState(() => {
@@ -49,7 +50,7 @@ const App = () => {
 
   return (
     <>
-      <Toaster position="top-center" />
+      <ToastContainer position="top-right" />
       <Router>
         <Routes>
           <Route path="/login" element={
