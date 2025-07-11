@@ -65,24 +65,22 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
   );
 }
 
+
 import React, { useState, useRef, useEffect } from "react";
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Header from "./Header";
-import Sidebar from "./Sidebar";
-import CalendarBar from "./CalendarBar";
-import { useParams, useNavigate } from "react-router-dom";
-
-
-import SectionA from "../assets/Section-A.svg";
-import SectionB from "../assets/Section-B.svg";
-import SectionC from "../assets/Section-C.svg";
-import SectionD from "../assets/Section-D.svg";
-import SectionE from "../assets/Section-E.svg";
-
-import SectionF from "../assets/Section-F.svg";
-import SectionG from "../assets/Section-G.svg";
+import Header from "./Header.jsx";
+import Sidebar from "./Sidebar.jsx";
+import CalendarBar from "./CalendarBar.jsx";
+import SectionA from '../../assets/Section-A.svg';
+import SectionB from '../../assets/Section-B.svg';
+import SectionC from '../../assets/Section-C.svg';
+import SectionD from '../../assets/Section-D.svg';
+import SectionE from '../../assets/Section-E.svg';
+import SectionF from '../../assets/Section-F.svg';
+import SectionG from '../../assets/Section-G.svg';
 
 
 // Context to lift active seat highlight state

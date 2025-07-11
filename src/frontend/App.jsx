@@ -8,6 +8,8 @@ import Signup from "./components/Signup";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { supabase } from "./supabaseClient";
+import { upsertUser } from "../backend/users";
+import { getBookingsByUser } from "../backend/bookings";
 
 
 const App = () => {
@@ -22,14 +24,11 @@ const App = () => {
     const name = authUser.user_metadata?.full_name || authUser.user_metadata?.name || '';
     const email = authUser.email || '';
     // Try to upsert user (insert or update if exists)
-    const { error: upsertError } = await supabase.from('Users').upsert([
-      {
-        User_id: authUser.id,
-        Name: name,
-        email: email,
-        encrypted_password: '' // leave blank, handled by Supabase Auth
-      }
-    ], { onConflict: ['User_id'] });
+    const { error: upsertError } = await upsertUser({
+      id: authUser.id,
+      email,
+      name
+    });
     if (upsertError) {
       console.error('Error upserting user:', upsertError);
     }
@@ -86,7 +85,7 @@ const App = () => {
   // Example: Fetch bookings for this userId
   // useEffect(() => {
   //   if (userId) {
-  //     supabase.from('Bookings').select('*').eq('User_id', userId).then(({ data }) => {
+  //     getBookingsByUser(userId).then(({ data }) => {
   //       // Do something with bookings
   //     });
   //   }

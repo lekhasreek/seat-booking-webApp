@@ -3,7 +3,7 @@ import Header from "./Header";
 import Sidebar from "./Sidebar";
 // import CalendarBar from "./CalendarBar";
 import { useNavigate } from "react-router-dom";
-import FloorMap from "../assets/FloorMap.svg";
+import FloorMap from "../../assets/FloorMap.svg";
 
 const sectionAreas = [
   { id: "A", label: "Section A", svgId: "Section-A" },

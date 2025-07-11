@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
+import { insertUser } from '../../backend/users';
 const cprimeLogoSrc = '/cprime-logo.png';
 import './Signup.css';
 
@@ -97,14 +98,7 @@ const Signup = ({ onBackToLogin, onSignupSuccess }) => {
           console.error('No user object in signup response:', data);
         } else {
           const { id, email } = user;
-          const { error: insertError } = await supabase.from('Users').insert([
-            {
-              User_id: id,
-              email,
-              Name: formData.name.trim(),
-              encrypted_password: null // or provide a value if required
-            }
-          ]);
+          const { error: insertError } = await insertUser({ id, email, name: formData.name.trim() });
           if (insertError) {
             toast.error('User created but failed to add to Users table: ' + insertError.message);
             console.error('Insert Users error:', insertError);
