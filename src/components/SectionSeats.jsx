@@ -1,5 +1,3 @@
-
-// ...existing code...
 // Overlay for a single seat, with hover state for booked seats
 function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, selectedDate }) {
   // Use lifted state for blue highlight
@@ -17,14 +15,14 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
         border: '2px solid #000',
         borderRadius: 6,
         zIndex: 10,
-        pointerEvents: 'all',
+        pointerEvents: 'all', // allow click for both booked and available
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         color: '#000',
         fontWeight: 600,
         fontSize: 16,
-        cursor: isBooked ? 'not-allowed' : 'pointer',
+        cursor: isBooked ? 'pointer' : 'pointer', // always pointer
         opacity: isBooked ? 0.7 : 1,
         transition: 'background 0.15s',
       }}
@@ -37,12 +35,28 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
             date: selectedDate,
           });
           setBookingName('');
+        } else {
+          setViewBookingDetails({
+            seatId: overlay.id,
+            seatName: overlay.id.replace(/^Square-/, ''),
+            booking: bookedSeats[selectedDate]?.[overlay.id],
+          });
         }
       }}
       onMouseEnter={e => {
         if (isBooked) {
-          e.currentTarget.style.cursor = 'not-allowed';
+          setHoverBookingDetails({
+            seatId: overlay.id,
+            seatName: overlay.id.replace(/^Square-/, ''),
+            booking: bookedSeats[selectedDate]?.[overlay.id],
+            x: e.clientX,
+            y: e.clientY,
+          });
+          e.currentTarget.style.cursor = 'pointer';
         }
+      }}
+      onMouseLeave={() => {
+        setHoverBookingDetails(null);
       }}
     >
       {overlay.id.replace(/^Square-/, '')}
@@ -220,10 +234,10 @@ const SectionSeats = () => {
         console.log(`Seat ${id} screen coords:`, rect);
       }
     });
-    // Also log all Square-A* paths if present
+    // Also log all Square-* paths if present
     const svg = document.querySelector('svg');
     if (svg) {
-      const squarePaths = svg.querySelectorAll('path[id^="Square-A"]');
+      const squarePaths = svg.querySelectorAll('path[id^="Square-"]');
       squarePaths.forEach(path => {
         const rect = path.getBoundingClientRect();
         console.log(`Square seat ${path.id} screen coords:`, rect);
@@ -252,16 +266,20 @@ const SectionSeats = () => {
     return <div className="p-8 text-center text-red-600">Invalid section</div>;
   }
 
-  const handleBook = (seatId, date) => {
-    setBookedSeats((prev) => ({
+  // Add this state for time slots
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState([]);
+
+  const handleBook = (seatId, date, timeSlots) => {
+    setBookedSeats(prev => ({
       ...prev,
       [date]: {
         ...(prev[date] || {}),
-        [seatId]: true,
+        [seatId]: { booked: true, timeSlots, name: bookingName },
       },
     }));
     setShowBooking(null);
     setBookingName('');
+    setSelectedTimeSlots([]);
   };
 
 
@@ -280,8 +298,8 @@ const SectionSeats = () => {
     const [vbX, vbY, vbW, vbH] = viewBox.split(/\s+/).map(Number);
     const renderedW = svg.clientWidth;
     const renderedH = svg.clientHeight;
-    // For each Square-A* path, get its bbox and map to container px
-    const squarePaths = svg.querySelectorAll('path[id^="Square-A"]');
+    // For each Square-* path, get its bbox and map to container px
+    const squarePaths = svg.querySelectorAll('path[id^="Square-"]');
     squarePaths.forEach(path => {
       const bbox = path.getBBox();
       // Map SVG coords to px in container
@@ -325,6 +343,10 @@ const SectionSeats = () => {
   // If CalendarBar does not provide a way to select date, add a date picker here:
   // (Uncomment if needed)
   // <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
+
+  // Add state for viewing booking details and tooltip
+  const [viewBookingDetails, setViewBookingDetails] = useState(null);
+  const [hoverBookingDetails, setHoverBookingDetails] = useState(null);
 
   return (
     <SeatOverlayContext.Provider value={{ activeSeat, selectedDateForActive, setActiveSeat }}>
@@ -419,8 +441,38 @@ const SectionSeats = () => {
               />
             ))}
 
+            {/* Tooltip for hover on booked seat */}
+            {hoverBookingDetails && hoverBookingDetails.booking && (
+              <div
+                style={{
+                  position: 'fixed',
+                  left: hoverBookingDetails.x + 12,
+                  top: hoverBookingDetails.y + 12,
+                  background: '#fff',
+                  border: '1px solid #2563eb',
+                  borderRadius: 8,
+                  boxShadow: '0 2px 8px #0002',
+                  padding: '12px 18px',
+                  zIndex: 200,
+                  minWidth: 180,
+                  fontSize: 14,
+                  pointerEvents: 'none',
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>Booked by: {hoverBookingDetails.booking.name}</div>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {['morning', 'afternoon', 'evening'].map(slot => (
+                    <li key={slot} style={{ marginBottom: 2, display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ textTransform: 'capitalize' }}>{slot}</span>
+                      <span style={{ fontWeight: 600, color: hoverBookingDetails.booking.timeSlots.includes(slot) ? '#e11d48' : '#059669' }}>
+                        {hoverBookingDetails.booking.timeSlots.includes(slot) ? 'Booked' : 'Available'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-// ...existing code...
             {/* Booking Form Modal */}
             {showBooking && showBooking.seatId && (
               <div
@@ -455,13 +507,12 @@ const SectionSeats = () => {
                     width: '100%',
                   }}
                 />
-                {/* Hide the date input in the modal, use the section's selectedDate */}
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={e => {
                     setSelectedDate(e.target.value);
-                setShowBooking(showBooking => showBooking ? { ...showBooking, date: e.target.value } : null);
+                    setShowBooking(showBooking => showBooking ? { ...showBooking, date: e.target.value } : null);
                   }}
                   style={{
                     border: '1px solid #ccc',
@@ -471,6 +522,27 @@ const SectionSeats = () => {
                     width: '100%',
                   }}
                 />
+                <div style={{ width: '100%', marginBottom: 12 }}>
+                  <label style={{ fontWeight: 500, marginBottom: 4, display: 'block' }}>Time Slot</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {['morning', 'afternoon', 'evening'].map(slot => (
+                      <label key={slot} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedTimeSlots.includes(slot)}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setSelectedTimeSlots(prev => [...prev, slot]);
+                            } else {
+                              setSelectedTimeSlots(prev => prev.filter(s => s !== slot));
+                            }
+                          }}
+                        />
+                        <span style={{ textTransform: 'capitalize' }}>{slot}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <button
                   onClick={() => {
                     if (
@@ -478,9 +550,10 @@ const SectionSeats = () => {
                       showBooking &&
                       showBooking.seatId &&
                       selectedDate &&
+                      selectedTimeSlots.length > 0 &&
                       !bookedSeats[selectedDate]?.[showBooking.seatId]
                     ) {
-                      handleBook(showBooking.seatId, selectedDate);
+                      handleBook(showBooking.seatId, selectedDate, selectedTimeSlots);
                     }
                   }}
                   style={{
@@ -491,28 +564,28 @@ const SectionSeats = () => {
                     padding: '7px 18px',
                     fontWeight: 600,
                     cursor:
-                      bookingName.trim() && showBooking && showBooking.seatId && !bookedSeats[selectedDate]?.[showBooking.seatId]
+                      bookingName.trim() && showBooking && showBooking.seatId && selectedTimeSlots.length > 0 && !bookedSeats[selectedDate]?.[showBooking.seatId]
                         ? 'pointer'
                         : 'not-allowed',
                     marginBottom: 6,
                     width: '100%',
                     opacity:
-                      bookingName.trim() && showBooking && showBooking.seatId && !bookedSeats[selectedDate]?.[showBooking.seatId]
+                      bookingName.trim() && showBooking && showBooking.seatId && selectedTimeSlots.length > 0 && !bookedSeats[selectedDate]?.[showBooking.seatId]
                         ? 1
                         : 0.6,
                   }}
                   disabled={
-                    Boolean(!bookingName || !bookingName.trim() ||
+                    Boolean(!bookingName || !bookingName.trim() || selectedTimeSlots.length === 0 ||
                     (showBooking && showBooking.seatId && bookedSeats[selectedDate]?.[showBooking.seatId]))
                   }
                 >
                   {showBooking && showBooking.seatId && bookedSeats[selectedDate]?.[showBooking.seatId] ? 'Already Booked' : 'Book'}
                 </button>
-            <button
-              onClick={() => {
-                setShowBooking(null);
-                setActiveSeat(null, '');
-              }}
+                <button
+                  onClick={() => {
+                    setShowBooking(null);
+                    setActiveSeat(null, '');
+                  }}
                   style={{
                     background: 'none',
                     color: '#2563eb',
@@ -526,6 +599,70 @@ const SectionSeats = () => {
                 >
                   Cancel
                 </button>
+              </div>
+            )}
+
+            {/* Modal for viewing booking details */}
+            {viewBookingDetails && viewBookingDetails.booking && (
+              <div
+                style={{
+                  position: 'fixed',
+                  left: 0,
+                  top: 0,
+                  width: '100vw',
+                  height: '100vh',
+                  background: 'rgba(0,0,0,0.3)',
+                  zIndex: 100,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onClick={() => setViewBookingDetails(null)}
+              >
+                <div
+                  style={{
+                    background: '#fff',
+                    borderRadius: 12,
+                    boxShadow: '0 4px 24px #0002',
+                    padding: 24,
+                    minWidth: 260,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    position: 'relative',
+                  }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Booking Details</div>
+                  <div style={{ marginBottom: 8 }}><strong>Seat:</strong> {viewBookingDetails.seatName}</div>
+                  <div style={{ marginBottom: 8 }}><strong>Name:</strong> {viewBookingDetails.booking.name}</div>
+                  <div style={{ marginBottom: 8 }}><strong>Time Slots:</strong></div>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
+                    {['morning', 'afternoon', 'evening'].map(slot => (
+                      <li key={slot} style={{ marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ textTransform: 'capitalize' }}>{slot}</span>
+                        <span style={{ fontWeight: 600, color: viewBookingDetails.booking.timeSlots.includes(slot) ? '#e11d48' : '#059669' }}>
+                          {viewBookingDetails.booking.timeSlots.includes(slot) ? 'Booked' : 'Available'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    style={{
+                      marginTop: 16,
+                      background: '#2563eb',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '7px 18px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => setViewBookingDetails(null)}
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             )}
           </div>

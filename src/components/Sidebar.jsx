@@ -26,9 +26,6 @@ const Sidebar = () => {
                   <SidebarLink to="/" label="Workspace Layout" />
                 </div>
                 <div style={{ marginBottom: 4 }}>
-                  <SidebarLink to="/bookings" label="Bookings" />
-                </div>
-                <div style={{ marginBottom: 4 }}>
                   <button
                     onClick={() => setWorkspacesOpen((open) => !open)}
                     style={{

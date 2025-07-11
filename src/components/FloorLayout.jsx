@@ -41,7 +41,6 @@ const FloorLayout = () => {
           {/* Overlay clickable areas */}
           {sectionAreas.map((section) => {
             // These coordinates should be adjusted to match the SVG layout
-            // Example: Section A overlay
             let style = {};
             switch (section.id) {
               case "A":
@@ -69,14 +68,23 @@ const FloorLayout = () => {
                 break;
             }
             return (
-              <button
+              <div
                 key={section.id}
-                className="absolute bg-transparent border-2 border-transparent hover:border-blue-400 transition focus:outline-none"
-                style={{ ...style, position: "absolute", background: 'transparent' }}
+                className="absolute group cursor-pointer"
+                style={{ ...style, position: "absolute", background: 'rgba(0,0,0,0)', zIndex: 10 }}
                 aria-label={section.label}
                 onClick={() => navigate(`/section/${section.id}`)}
                 tabIndex={0}
-              />
+                role="button"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    navigate(`/section/${section.id}`);
+                  }
+                }}
+              >
+                {/* Optional: Add a visual hover effect for the whole box */}
+                <div className="w-full h-full" style={{ width: '100%', height: '100%' }} />
+              </div>
             );
           })}
         </div>
