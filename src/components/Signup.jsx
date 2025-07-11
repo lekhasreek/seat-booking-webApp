@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { supabase } from '../supabaseClient';
-import { insertUser } from '../../../backend/users';
+import { supabase } from '../frontend/supabaseClient';
+import { insertUser } from '../../backend/users';
 const cprimeLogoSrc = '/cprime-logo.png';
 import './Signup.css';
 

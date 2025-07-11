@@ -1,15 +1,15 @@
 
 import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import FloorLayout from "./components/FloorLayout";
-import SectionSeats from "./components/SectionSeats";
-import Login from "./components/Login";
-import Signup from "./components/Signup";
+import FloorLayout from "./frontend/components/FloorLayout";
+import SectionSeats from "./frontend/components/SectionSeats";
+import Login from "./frontend/components/Login";
+import Signup from "./frontend/components/Signup";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { supabase } from "./supabaseClient";
-import { upsertUser } from "../../backend/users";
-import { getBookingsByUser } from "../../backend/bookings";
+import { upsertUser } from "./backend/users";
+import { getBookingsByUser } from "./backend/bookings";
 
 
 const App = () => {

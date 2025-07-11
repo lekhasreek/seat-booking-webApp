@@ -68,19 +68,19 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
 
 import React, { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from 'react-router-dom';
-import { getBookedSeatsBySectionAndDate, insertBooking } from '../../../backend/bookings';
+import { supabase } from '../frontend/supabaseClient';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Header from "./Header.jsx";
-import Sidebar from "./Sidebar.jsx";
-import CalendarBar from "./CalendarBar.jsx";
-import SectionA from '../../assets/Section-A.svg';
-import SectionB from '../../assets/Section-B.svg';
-import SectionC from '../../assets/Section-C.svg';
-import SectionD from '../../assets/Section-D.svg';
-import SectionE from '../../assets/Section-E.svg';
-import SectionF from '../../assets/Section-F.svg';
-import SectionG from '../../assets/Section-G.svg';
+import Header from "./Header";
+import Sidebar from "./Sidebar";
+import CalendarBar from "./CalendarBar";
+import SectionA from '../assets/Section-A.svg';
+import SectionB from '../assets/Section-B.svg';
+import SectionC from '../assets/Section-C.svg';
+import SectionD from '../assets/Section-D.svg';
+import SectionE from '../assets/Section-E.svg';
+import SectionF from '../assets/Section-F.svg';
+import SectionG from '../assets/Section-G.svg';
 
 
 // Context to lift active seat highlight state
@@ -203,37 +203,17 @@ const sectionSVGs = {
 
 // We'll dynamically extract seats for Section A from the SV
 
-
 const SectionSeats = () => {
-  // Always declare selectedDate at the top before any useEffect or usage
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [activeSeat, setActiveSeatState] = useState(null);
   const [selectedDateForActive, setSelectedDateForActive] = useState('');
   const setActiveSeat = (seatId, date) => {
     setActiveSeatState(seatId);
     setSelectedDateForActive(date);
   };
-  let { sectionId } = useParams();
-  sectionId = sectionId ? sectionId.toUpperCase() : sectionId;
+  const { sectionId } = useParams();
   const navigate = useNavigate();
   // Bookings are now specific to date: { [date]: { [seatId]: true } }
   const [bookedSeats, setBookedSeats] = useState({});
-
-
-
-  // Fetch booked seats from backend for this section and date
-  useEffect(() => {
-    async function fetchBooked() {
-      if (!sectionId || !selectedDate) return;
-      try {
-        const booked = await getBookedSeatsBySectionAndDate(sectionId, selectedDate);
-        setBookedSeats(prev => ({ ...prev, [selectedDate]: booked }));
-      } catch (err) {
-        console.error('Failed to fetch booked seats:', err);
-      }
-    }
-    fetchBooked();
-  }, [sectionId, selectedDate]);
 
   const [seats, setSeats] = useState([]);
 
@@ -291,21 +271,62 @@ const SectionSeats = () => {
   // Add this state for time slots
   const [selectedTimeSlots, setSelectedTimeSlots] = useState([]);
 
-  // Async booking handler: insert into backend Bookings API
+  // Async booking handler: insert into Supabase Bookings table
   const handleBook = async (seatId, date) => {
     if (selectedTimeSlots.length === 0) return;
     try {
-      for (const timeslot of selectedTimeSlots) {
-        await insertBooking({
-          created_at: date,
-          Seat_Number: seatId,
-          Timeslot: timeslot,
-          Name: bookingName,
-        });
+      // Get seatName and seatNumber
+      const seatName = showBooking?.seatName || seatId;
+      console.log('Booking seatName (from overlay/modal):', seatName);
+      // DEBUG: Print all Seat_Number values in Seats table before lookup
+      const { data: allSeats, error: allSeatsError } = await supabase
+        .from('Seats')
+        .select('Seat_Number');
+      if (allSeatsError) {
+        console.error('Error fetching all Seat_Number values:', allSeatsError);
+      } else {
+        console.log('All Seat_Number values in Seats table:', allSeats?.map(s => JSON.stringify(s.Seat_Number)));
       }
-      // Refetch booked seats after booking
-      const booked = await getBookedSeatsBySectionAndDate(sectionId, date);
-      setBookedSeats(prev => ({ ...prev, [date]: booked }));
+      // Use the full seat name as in DB (e.g., 'Square-A1')
+      // Fetch Seat_id (UUID) from Seats table using Seat_Name
+      console.log('Looking up Seat_Number in DB:', seatName, '| typeof:', typeof seatName, '| length:', seatName?.length);
+      const { data: seatRows, error: seatError } = await supabase
+        .from('Seats')
+        .select('Seat_id')
+        .eq('Seat_Number', seatName)
+        .limit(1);
+      console.log('Supabase seatRows:', seatRows);
+      console.log('Supabase seatError:', seatError);
+      if (seatError) throw seatError;
+      if (!seatRows || seatRows.length === 0) throw new Error('Seat not found in Seats table');
+      const seatUUID = seatRows[0].Seat_id;
+
+      // Get current Supabase Auth user
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!userData || !userData.user || !userData.user.id) throw new Error('User not authenticated');
+      const userId = userData.user.id;
+
+      for (const timeslot of selectedTimeSlots) {
+        const { error } = await supabase.from('Bookings').insert([
+          {
+            created_at: new Date(date),
+            Seat_Number: seatName,
+            Seat_id: seatUUID,
+            User_id: userId,
+            Timeslot: timeslot,
+            Name: bookingName,
+          },
+        ]);
+        if (error) throw error;
+      }
+      setBookedSeats(prev => ({
+        ...prev,
+        [date]: {
+          ...(prev[date] || {}),
+          [seatId]: { booked: true, timeSlots: selectedTimeSlots, name: bookingName },
+        },
+      }));
       setShowBooking(null);
       setBookingName('');
       setSelectedTimeSlots([]);
@@ -401,7 +422,9 @@ const SectionSeats = () => {
     };
   }, [svgText, seats]);
 
-
+  // Get selected date for booking context (from CalendarBar or modal, fallback to today)
+  // We'll use a controlled date state for the whole section, so overlays always reflect the selected date
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Pass setSelectedDate to CalendarBar (if CalendarBar supports it)
   // If not, render a date picker above the seats for date selection
