@@ -282,7 +282,7 @@ const SectionSeats = () => {
             <path d="M6 10.5L9 13.5L14 8.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </span>
-        <span style={{ fontSize: 18, color: '#444' }}>Meeting booked successfully</span>
+        <span style={{ fontSize: 18, color: '#444' }}>Seat booked successfully</span>
       </div>,
       {
         position: 'top-right',
