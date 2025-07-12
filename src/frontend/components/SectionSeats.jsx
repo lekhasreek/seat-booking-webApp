@@ -1,4 +1,3 @@
-
 // Overlay for a single seat, with hover state for booked seats
 function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, selectedDate, setHoverBookingDetails = () => {} }) {
   // Use lifted state for blue highlight
@@ -16,14 +15,14 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
         border: '2px solid #000',
         borderRadius: 6,
         zIndex: 10,
-        pointerEvents: 'all', // allow click for both booked and available
+        pointerEvents: 'all',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         color: '#000',
         fontWeight: 600,
         fontSize: 16,
-        cursor: isBooked ? 'pointer' : 'pointer', // always pointer
+        cursor: isBooked ? 'pointer' : 'pointer',
         opacity: isBooked ? 0.7 : 1,
         transition: 'background 0.15s',
       }}
@@ -35,7 +34,6 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
             seatName: overlay.id.replace(/^Square-/, ''),
             date: selectedDate,
           });
-          setBookingName('');
         } else {
           setViewBookingDetails({
             seatId: overlay.id,
@@ -89,12 +87,6 @@ const SeatOverlayContext = React.createContext({
   selectedDateForActive: '',
   setActiveSeat: () => {},
 });
-
-// Only one SectionSeats component definition
-// (Removed duplicate SectionSeats definition)
-
-
-
 
 
 // Utility to extract seat positions from SVG <g> or <path> with id format Seat-A1, Seat-A2, ...
@@ -201,10 +193,8 @@ const sectionSVGs = {
   G: SectionG,
 };
 
-// We'll dynamically extract seats for Section A from the SV
 
-
-const SectionSeats = () => {
+const SectionSeats = ({ userId }) => {
   // Always declare selectedDate at the top before any useEffect or usage
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [activeSeat, setActiveSeatState] = useState(null);
@@ -238,7 +228,6 @@ const SectionSeats = () => {
   const [seats, setSeats] = useState([]);
 
   const [showBooking, setShowBooking] = useState(null);
-  const [bookingName, setBookingName] = useState('');
   // Store SVG text for inline rendering
   const [svgText, setSvgText] = useState(null);
 
@@ -294,20 +283,36 @@ const SectionSeats = () => {
   // Async booking handler: insert into backend Bookings API
   const handleBook = async (seatId, date) => {
     if (selectedTimeSlots.length === 0) return;
+    if (!userId) {
+      toast.error('User not found. Please log in again.');
+      return;
+    }
+    // Always extract seat number from overlay id (e.g., 'Square-A5' → 'A5')
+    const seatNumber = seatId.replace(/^Square-/, '');
+    let seatUUID = null;
     try {
+      // Fetch all seats from backend (or cache)
+      const res = await fetch('http://localhost:4000/api/seats');
+      const allSeats = await res.json();
+      // Find the seat with matching Seat_Number
+      const match = allSeats.seats.find(s => s.Seat_Number === seatNumber);
+      if (!match) {
+        toast.error('Seat UUID not found for ' + seatNumber);
+        return;
+      }
+      seatUUID = match.Seat_id;
       for (const timeslot of selectedTimeSlots) {
         await insertBooking({
           created_at: date,
-          Seat_Number: seatId,
+          Seat_id: seatUUID, // send UUID
           Timeslot: timeslot,
-          Name: bookingName,
+          User_id: userId,
         });
       }
       // Refetch booked seats after booking
       const booked = await getBookedSeatsBySectionAndDate(sectionId, date);
       setBookedSeats(prev => ({ ...prev, [date]: booked }));
       setShowBooking(null);
-      setBookingName('');
       setSelectedTimeSlots([]);
       toast.success(
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -402,14 +407,6 @@ const SectionSeats = () => {
   }, [svgText, seats]);
 
 
-
-  // Pass setSelectedDate to CalendarBar (if CalendarBar supports it)
-  // If not, render a date picker above the seats for date selection
-
-  // If CalendarBar does not provide a way to select date, add a date picker here:
-  // (Uncomment if needed)
-  // <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
-
   // Add state for viewing booking details and tooltip
   const [viewBookingDetails, setViewBookingDetails] = useState(null);
   const [hoverBookingDetails, setHoverBookingDetails] = useState(null);
@@ -502,8 +499,8 @@ const SectionSeats = () => {
                 overlay={overlay}
                 isBooked={!!bookedSeats[selectedDate]?.[overlay.id]}
                 setShowBooking={setShowBooking}
-                setBookingName={setBookingName}
                 selectedDate={selectedDate}
+                setHoverBookingDetails={setHoverBookingDetails}
               />
             ))}
 
@@ -564,21 +561,7 @@ const SectionSeats = () => {
                 }}
               >
                 <div style={{ marginBottom: 16, fontWeight: 600, fontSize: 18 }}>Book Seat {showBooking.seatName}</div>
-                <input
-                  type="text"
-                  placeholder="Your Name"
-                  value={bookingName}
-                  onChange={e => setBookingName(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '6px 10px',
-                    marginBottom: 10,
-                    border: '1px solid #ccc',
-                    borderRadius: 4,
-                    fontSize: 15
-                  }}
-                  autoFocus
-                />
+                {/* Name input removed: Name will be filled from Users table using User_id */}
                 <input
                   type="date"
                   value={selectedDate}
@@ -619,7 +602,6 @@ const SectionSeats = () => {
                 <button
                   onClick={async () => {
                     if (
-                      bookingName.trim() &&
                       showBooking &&
                       showBooking.seatId &&
                       selectedDate &&
@@ -637,18 +619,18 @@ const SectionSeats = () => {
                     padding: '7px 18px',
                     fontWeight: 600,
                     cursor:
-                      bookingName.trim() && showBooking && showBooking.seatId && selectedTimeSlots.length > 0 && !bookedSeats[selectedDate]?.[showBooking.seatId]
+                      showBooking && showBooking.seatId && selectedTimeSlots.length > 0 && !bookedSeats[selectedDate]?.[showBooking.seatId]
                         ? 'pointer'
                         : 'not-allowed',
                     marginBottom: 6,
                     width: '100%',
                     opacity:
-                      bookingName.trim() && showBooking && showBooking.seatId && selectedTimeSlots.length > 0 && !bookedSeats[selectedDate]?.[showBooking.seatId]
+                      showBooking && showBooking.seatId && selectedTimeSlots.length > 0 && !bookedSeats[selectedDate]?.[showBooking.seatId]
                         ? 1
                         : 0.6,
                   }}
                   disabled={
-                    Boolean(!bookingName || !bookingName.trim() || selectedTimeSlots.length === 0 ||
+                    Boolean(selectedTimeSlots.length === 0 ||
                     (showBooking && showBooking.seatId && bookedSeats[selectedDate]?.[showBooking.seatId]))
                   }
                 >
