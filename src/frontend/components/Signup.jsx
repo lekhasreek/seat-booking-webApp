@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { supabase } from '../supabaseClient';
-import { insertUser } from '../../../backend/users';
+import { upsertUser } from '../../../backend/users';
 const cprimeLogoSrc = '/cprime-logo.png';
 import './Signup.css';
 
 const Signup = ({ onBackToLogin, onSignupSuccess }) => {
+  console.log('Signup component rendered');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -74,6 +76,7 @@ const Signup = ({ onBackToLogin, onSignupSuccess }) => {
   };
 
   const handleSubmit = async (e) => {
+    console.log('Signup form submitted');
     e.preventDefault();
     if (!validateForm()) {
       return;
@@ -91,27 +94,17 @@ const Signup = ({ onBackToLogin, onSignupSuccess }) => {
       if (error) {
         toast.error(error.message || 'Sign up failed. Please try again.');
       } else {
-        // Insert user into Users table
-        const user = data?.user;
-        if (!user) {
-          toast.error('Signup succeeded but no user object returned. Check if email confirmation is required.');
-          console.error('No user object in signup response:', data);
-        } else {
-          const { id, email } = user;
-          const { error: insertError } = await insertUser({ id, email, name: formData.name.trim() });
-          if (insertError) {
-            toast.error('User created but failed to add to Users table: ' + insertError.message);
-            console.error('Insert Users error:', insertError);
-          }
-          toast.success('Sign up successful! Redirecting to login...');
-          setTimeout(() => {
-            onSignupSuccess();
-          }, 2000); // 2 second delay before redirect
-        }
+        // Show toast as soon as user is created in auth.users
+        console.log('Signup successful, showing toast!');
+        toast.success('Sign up successful! Redirecting to login...');
+        // Delay closing the signup form to allow toast to show
+        setTimeout(() => {
+          onSignupSuccess();
+        }, 3500); // 3.5 second delay before redirect
       }
-    } catch (error) {
-      console.error('Signup error:', error);
-      toast.error('Network error. Please try again.');
+    } catch (err) {
+      toast.error('Unexpected error during signup.');
+      console.error('Signup error:', err);
     } finally {
       setLoading(false);
     }
@@ -120,16 +113,12 @@ const Signup = ({ onBackToLogin, onSignupSuccess }) => {
   return (
     <div className="signup-container">
       <div className="signup-box">
-        <div className="signup-header">
-          <img src={cprimeLogoSrc} alt="Cprime" className="signup-logo" />
-          <h2>Create Account</h2>
-          <p>Join the Cprime Meeting Rooms platform</p>
-        </div>
+        <img src={cprimeLogoSrc} alt="Cprime Logo" className="signup-logo" />
+        <h2>Sign Up</h2>
         <form onSubmit={handleSubmit} className="signup-form">
           <div className="form-group">
             <label htmlFor="name">Full Name</label>
             <input
-              type="text"
               id="name"
               name="name"
               value={formData.name}
@@ -188,10 +177,11 @@ const Signup = ({ onBackToLogin, onSignupSuccess }) => {
             </div>
             {errors.confirmPassword && <span className="error-message">{errors.confirmPassword}</span>}
           </div>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="signup-button"
             disabled={loading}
+            onClick={() => console.log('Signup button clicked')}
           >
             {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
@@ -212,6 +202,6 @@ const Signup = ({ onBackToLogin, onSignupSuccess }) => {
       </div>
     </div>
   );
-};
+}
 
 export default Signup;

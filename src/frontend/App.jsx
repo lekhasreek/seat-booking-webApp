@@ -5,12 +5,17 @@ import FloorLayout from "./components/FloorLayout";
 import SectionSeats from "./components/SectionSeats";
 import Login from "./components/Login";
 import Signup from "./components/Signup";
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { supabase } from "./supabaseClient";
 import { upsertUser } from "../../backend/users";
 import { getBookingsByUser } from "../../backend/bookings";
 
+
+// Expose toast globally for debug button
+if (typeof window !== 'undefined') {
+  window.toast = toast;
+}
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -63,22 +68,25 @@ const App = () => {
 
   if (!user) {
     return (
-      <Router>
-        {showSignup ? (
-          <Signup
-            onBackToLogin={() => setShowSignup(false)}
-            onSignupSuccess={() => setShowSignup(false)}
-          />
-        ) : (
-          <Login
-            onLogin={() => supabase.auth.getUser().then(({ data }) => {
-              setUser(data?.user || null);
-              upsertAndFetchUserId(data?.user);
-            })}
-            onShowSignup={() => setShowSignup(true)}
-          />
-        )}
-      </Router>
+      <>
+        <ToastContainer position="top-right" />
+        <Router>
+          {showSignup ? (
+            <Signup
+              onBackToLogin={() => setShowSignup(false)}
+              onSignupSuccess={() => setShowSignup(false)}
+            />
+          ) : (
+            <Login
+              onLogin={() => supabase.auth.getUser().then(({ data }) => {
+                setUser(data?.user || null);
+                upsertAndFetchUserId(data?.user);
+              })}
+              onShowSignup={() => setShowSignup(true)}
+            />
+          )}
+        </Router>
+      </>
     );
   }
 
@@ -103,6 +111,7 @@ const App = () => {
       </Router>
     </>
   );
+
 };
 
 export default App;

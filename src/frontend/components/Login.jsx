@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { toast } from 'react-toastify';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -22,11 +23,16 @@ const Login = ({ onLogin, onShowSignup }) => {
     setLoading(false);
     if (error) {
       setError(error.message);
+      toast.error(error.message || 'Login failed. Please try again.');
     } else if (data && data.user) {
+      toast.success('Login successful!');
       onLogin(data.user.id, data.user.email, 'user');
-      navigate('/');
+      setTimeout(() => {
+        navigate('/');
+      }, 3500); // 3.5 second delay before redirect
     } else {
       setError('Login failed.');
+      toast.error('Login failed.');
     }
   };
 

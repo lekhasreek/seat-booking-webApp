@@ -5,7 +5,7 @@ import FloorLayout from "./frontend/components/FloorLayout";
 import SectionSeats from "./frontend/components/SectionSeats";
 import Login from "./frontend/components/Login";
 import Signup from "./frontend/components/Signup";
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { supabase } from "./supabaseClient";
 import { upsertUser } from "./backend/users";
@@ -93,6 +93,7 @@ const App = () => {
 
   return (
     <>
+      <button style={{position:'fixed',top:10,right:10,zIndex:9999}} onClick={()=>toast('Test Toast!')}>Show Test Toast</button>
       <ToastContainer position="top-right" />
       <Router>
         <Routes>
