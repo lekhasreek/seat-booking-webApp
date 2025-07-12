@@ -1,8 +1,38 @@
+import React, { useState, useRef, useEffect } from "react";
+import { useParams, useNavigate } from 'react-router-dom';
+import { getBookedSeatsBySectionAndDate, insertBooking } from '../../../backend/bookings';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import Header from "./Header.jsx";
+import Sidebar from "./Sidebar.jsx";
+import CalendarBar from "./CalendarBar.jsx";
+import SectionA from '../../assets/Section-A.svg';
+import SectionB from '../../assets/Section-B.svg';
+import SectionC from '../../assets/Section-C.svg';
+import SectionD from '../../assets/Section-D.svg';
+import SectionE from '../../assets/Section-E.svg';
+import SectionF from '../../assets/Section-F.svg';
+import SectionG from '../../assets/Section-G.svg';
+
+
+// Context to lift active seat highlight state
+const SeatOverlayContext = React.createContext({
+  activeSeat: null,
+  selectedDateForActive: '',
+  setActiveSeat: () => {},
+});
+
+
 // Overlay for a single seat, with hover state for booked seats
-function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, selectedDate, setHoverBookingDetails = () => {} }) {
+function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHoverBookingDetails = () => {}, setViewBookingDetails, bookedSeatsMap }) { // Added setViewBookingDetails, bookedSeatsMap
   // Use lifted state for blue highlight
   const { activeSeat, selectedDateForActive, setActiveSeat } = React.useContext(SeatOverlayContext);
-  const isActive = activeSeat === overlay.id && selectedDateForActive === selectedDate;
+  // Correct the date comparison for isActive
+  const isActive = activeSeat === overlay.id && selectedDateForActive && new Date(selectedDateForActive).toDateString() === new Date(selectedDate).toDateString();
+
+  // Get the normalized seat label from the overlay ID (e.g., 'Square-A1' -> 'A1')
+  const seatLabel = overlay.id.replace(/^Square-/, '');
+
   return (
     <div
       style={{
@@ -31,23 +61,37 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
           setActiveSeat(overlay.id, selectedDate);
           setShowBooking({
             seatId: overlay.id,
-            seatName: overlay.id.replace(/^Square-/, ''),
+            seatLabel: seatLabel, // Use the normalized label
             date: selectedDate,
           });
         } else {
+          // If already booked, show booking details
           setViewBookingDetails({
             seatId: overlay.id,
-            seatName: overlay.id.replace(/^Square-/, ''),
-            booking: bookedSeats[selectedDate]?.[overlay.id],
+            seatLabel: seatLabel, // Use the normalized label
+            // Pass the timeslot-mapped object for this seat on this date using the normalized label
+            bookingDetailsForSeat: bookedSeatsMap[selectedDate]?.[seatLabel], // Changed: Use seatLabel here
           });
         }
       }}
       onMouseEnter={e => {
         if (isBooked) {
+          // Changed: Use seatLabel here to get seatBookings
+          const seatBookings = bookedSeatsMap[selectedDate]?.[seatLabel] || {};
+          const bookedByName = Object.values(seatBookings)[0]?.Name || 'N/A'; // Get name from any booked slot
+
           setHoverBookingDetails({
             seatId: overlay.id,
-            seatName: overlay.id.replace(/^Square-/, ''),
-            booking: bookedSeats[selectedDate]?.[overlay.id],
+            seatLabel: seatLabel, // Use the normalized label
+            // Provide structured details for tooltip
+            details: {
+              name: bookedByName, // Name of one of the bookers
+              timeSlotsStatus: ['morning', 'afternoon', 'evening'].map(slot => ({
+                slot: slot,
+                isBooked: !!seatBookings[slot], // Check if this specific slot is booked
+                bookedBy: seatBookings[slot]?.Name || '', // Who booked this specific slot
+              })),
+            },
             x: e.clientX,
             y: e.clientY,
           });
@@ -58,35 +102,10 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, setBookingName, select
         setHoverBookingDetails(null);
       }}
     >
-      {overlay.id.replace(/^Square-/, '')}
+      {seatLabel} {/* Display the normalized seat label */}
     </div>
   );
 }
-
-
-import React, { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate } from 'react-router-dom';
-import { getBookedSeatsBySectionAndDate, insertBooking } from '../../../backend/bookings';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import Header from "./Header.jsx";
-import Sidebar from "./Sidebar.jsx";
-import CalendarBar from "./CalendarBar.jsx";
-import SectionA from '../../assets/Section-A.svg';
-import SectionB from '../../assets/Section-B.svg';
-import SectionC from '../../assets/Section-C.svg';
-import SectionD from '../../assets/Section-D.svg';
-import SectionE from '../../assets/Section-E.svg';
-import SectionF from '../../assets/Section-F.svg';
-import SectionG from '../../assets/Section-G.svg';
-
-
-// Context to lift active seat highlight state
-const SeatOverlayContext = React.createContext({
-  activeSeat: null,
-  selectedDateForActive: '',
-  setActiveSeat: () => {},
-});
 
 
 // Utility to extract seat positions from SVG <g> or <path> with id format Seat-A1, Seat-A2, ...
@@ -206,18 +225,31 @@ const SectionSeats = ({ userId }) => {
   let { sectionId } = useParams();
   sectionId = sectionId ? sectionId.toUpperCase() : sectionId;
   const navigate = useNavigate();
-  // Bookings are now specific to date: { [date]: { [seatId]: true } }
-  const [bookedSeats, setBookedSeats] = useState({});
 
-
+  // Bookings are now specific to date: { [date]: { [seatLabel]: { [timeslot]: bookingObject } } }
+  const [bookedSeatsMap, setBookedSeatsMap] = useState({}); // Renamed state
 
   // Fetch booked seats from backend for this section and date
   useEffect(() => {
     async function fetchBooked() {
       if (!sectionId || !selectedDate) return;
       try {
-        const booked = await getBookedSeatsBySectionAndDate(sectionId, selectedDate);
-        setBookedSeats(prev => ({ ...prev, [selectedDate]: booked }));
+        const { bookings } = await getBookedSeatsBySectionAndDate(sectionId, selectedDate); // `bookings` is an array
+
+        const newBookedSeatDataForDate = {};
+        bookings.forEach(booking => {
+          // Store actual booking object under Seat_Number and Timeslot
+          if (!newBookedSeatDataForDate[booking.Seat_Number]) { // Changed: Use Seat_Number as key here
+            newBookedSeatDataForDate[booking.Seat_Number] = {};
+          }
+          newBookedSeatDataForDate[booking.Seat_Number][booking.Timeslot] = booking; // Changed: Use Seat_Number here
+        });
+
+        setBookedSeatsMap(prev => ({
+          ...prev,
+          [selectedDate]: newBookedSeatDataForDate // Store the mapped data for the specific date
+        }));
+        console.log('Fetched and mapped booked seats:', newBookedSeatDataForDate);
       } catch (err) {
         console.error('Failed to fetch booked seats:', err);
       }
@@ -310,8 +342,16 @@ const SectionSeats = ({ userId }) => {
         });
       }
       // Refetch booked seats after booking
-      const booked = await getBookedSeatsBySectionAndDate(sectionId, date);
-      setBookedSeats(prev => ({ ...prev, [date]: booked }));
+      const { bookings: updatedBookings } = await getBookedSeatsBySectionAndDate(sectionId, date);
+      const newBookedSeatDataForDate = {};
+      updatedBookings.forEach(booking => {
+        // Changed: Use Seat_Number as key here
+        if (!newBookedSeatDataForDate[booking.Seat_Number]) {
+          newBookedSeatDataForDate[booking.Seat_Number] = {};
+        }
+        newBookedSeatDataForDate[booking.Seat_Number][booking.Timeslot] = booking;
+      });
+      setBookedSeatsMap(prev => ({ ...prev, [date]: newBookedSeatDataForDate })); // Use bookedSeatsMap
       setShowBooking(null);
       setSelectedTimeSlots([]);
       toast.success(
@@ -354,7 +394,6 @@ const SectionSeats = ({ userId }) => {
       toast.error('Failed to book seat: ' + err.message);
     }
   };
-
 
 
   // Utility to extract all path elements with id like Square-A1, Square-A2, ... from the inline SVG
@@ -471,7 +510,7 @@ const SectionSeats = ({ userId }) => {
             {/*
             <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, background: '#fff', border: '1px solid #2563eb', borderRadius: 8, padding: 8, maxHeight: 200, overflow: 'auto', fontSize: 12, minWidth: 180 }}>
               <div style={{ fontWeight: 600, color: '#2563eb', marginBottom: 4 }}>Extracted Seats</div>
-              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(seats, null, 2)}</pre>
+              <pre style={{ margin: 0, whiteWhiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(seats, null, 2)}</pre>
             </div>
             */}
             {/* Seat overlays rendered below (rects only) */}
@@ -497,15 +536,18 @@ const SectionSeats = ({ userId }) => {
               <SeatOverlay
                 key={overlay.id}
                 overlay={overlay}
-                isBooked={!!bookedSeats[selectedDate]?.[overlay.id]}
+                // isBooked if there are any bookings for this seat on the selected date
+                isBooked={Object.keys(bookedSeatsMap[selectedDate]?.[overlay.id.replace(/^Square-/, '')] || {}).length > 0} // Changed: Use normalized seat label here
                 setShowBooking={setShowBooking}
                 selectedDate={selectedDate}
                 setHoverBookingDetails={setHoverBookingDetails}
+                setViewBookingDetails={setViewBookingDetails} // Pass down
+                bookedSeatsMap={bookedSeatsMap} // Pass down
               />
             ))}
 
             {/* Tooltip for hover on booked seat */}
-            {hoverBookingDetails && hoverBookingDetails.booking && (
+            {hoverBookingDetails && hoverBookingDetails.details && (
               <div
                 style={{
                   position: 'fixed',
@@ -522,13 +564,13 @@ const SectionSeats = ({ userId }) => {
                   pointerEvents: 'none',
                 }}
               >
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>Booked by: {hoverBookingDetails.booking.name}</div>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>Booked by: {hoverBookingDetails.details.name}</div>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                  {['morning', 'afternoon', 'evening'].map(slot => (
-                    <li key={slot} style={{ marginBottom: 2, display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ textTransform: 'capitalize' }}>{slot}</span>
-                      <span style={{ fontWeight: 600, color: hoverBookingDetails.booking.timeSlots.includes(slot) ? '#e11d48' : '#059669' }}>
-                        {hoverBookingDetails.booking.timeSlots.includes(slot) ? 'Booked' : 'Available'}
+                  {hoverBookingDetails.details.timeSlotsStatus.map(slotStatus => (
+                    <li key={slotStatus.slot} style={{ marginBottom: 2, display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ textTransform: 'capitalize' }}>{slotStatus.slot}</span>
+                      <span style={{ fontWeight: 600, color: slotStatus.isBooked ? '#e11d48' : '#059669' }}>
+                        {slotStatus.isBooked ? `Booked (${slotStatus.bookedBy || 'N/A'})` : 'Available'}
                       </span>
                     </li>
                   ))}
@@ -560,7 +602,7 @@ const SectionSeats = ({ userId }) => {
                   boxShadow: '0 4px 24px rgba(9, 91, 190, 0.13)'
                 }}
               >
-                <div style={{ marginBottom: 16, fontWeight: 600, fontSize: 18 }}>Book Seat {showBooking.seatName}</div>
+                <div style={{ marginBottom: 16, fontWeight: 600, fontSize: 18 }}>Book Seat {showBooking.seatLabel}</div>
                 {/* Name input removed: Name will be filled from Users table using User_id */}
                 <input
                   type="date"
@@ -601,14 +643,18 @@ const SectionSeats = ({ userId }) => {
                 </div>
                 <button
                   onClick={async () => {
+                    // Changed: Use normalized seat label here for checks
+                    const currentSeatLabel = showBooking.seatId.replace(/^Square-/, '');
                     if (
                       showBooking &&
                       showBooking.seatId &&
                       selectedDate &&
                       selectedTimeSlots.length > 0 &&
-                      !bookedSeats[selectedDate]?.[showBooking.seatId]
+                      !Object.keys(bookedSeatsMap[selectedDate]?.[currentSeatLabel] || {}).some(slot => selectedTimeSlots.includes(slot)) // Changed for multi-timeslot check
                     ) {
                       await handleBook(showBooking.seatId, selectedDate);
+                    } else {
+                        toast.error('Selected timeslot(s) are already booked for this seat.');
                     }
                   }}
                   style={{
@@ -619,27 +665,28 @@ const SectionSeats = ({ userId }) => {
                     padding: '7px 18px',
                     fontWeight: 600,
                     cursor:
-                      showBooking && showBooking.seatId && selectedTimeSlots.length > 0 && !bookedSeats[selectedDate]?.[showBooking.seatId]
+                      showBooking && showBooking.seatId && selectedTimeSlots.length > 0 && !Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot)) // Changed
                         ? 'pointer'
                         : 'not-allowed',
                     marginBottom: 6,
                     width: '100%',
                     opacity:
-                      showBooking && showBooking.seatId && selectedTimeSlots.length > 0 && !bookedSeats[selectedDate]?.[showBooking.seatId]
+                      showBooking && showBooking.seatId && selectedTimeSlots.length > 0 && !Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot)) // Changed
                         ? 1
                         : 0.6,
                   }}
                   disabled={
                     Boolean(selectedTimeSlots.length === 0 ||
-                    (showBooking && showBooking.seatId && bookedSeats[selectedDate]?.[showBooking.seatId]))
+                    (showBooking && showBooking.seatId && Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot)))) // Changed
                   }
                 >
-                  {showBooking && showBooking.seatId && bookedSeats[selectedDate]?.[showBooking.seatId] ? 'Already Booked' : 'Book'}
+                  {showBooking && showBooking.seatId && Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot)) ? 'Already Booked' : 'Book'}
                 </button>
                 <button
                   onClick={() => {
                     setShowBooking(null);
                     setActiveSeat(null, '');
+                    setSelectedTimeSlots([]); // Clear selected timeslots on cancel
                   }}
                   style={{
                     background: 'none',
@@ -658,7 +705,7 @@ const SectionSeats = ({ userId }) => {
             )}
 
             {/* Modal for viewing booking details */}
-            {viewBookingDetails && viewBookingDetails.booking && (
+            {viewBookingDetails && viewBookingDetails.bookingDetailsForSeat && (
               <div
                 style={{
                   position: 'fixed',
@@ -689,18 +736,21 @@ const SectionSeats = ({ userId }) => {
                   onClick={e => e.stopPropagation()}
                 >
                   <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Booking Details</div>
-                  <div style={{ marginBottom: 8 }}><strong>Seat:</strong> {viewBookingDetails.seatName}</div>
-                  <div style={{ marginBottom: 8 }}><strong>Name:</strong> {viewBookingDetails.booking.name}</div>
+                  <div style={{ marginBottom: 8 }}><strong>Seat:</strong> {viewBookingDetails.seatLabel}</div>
+                  {/* Iterate through timeslots of the seat to show details */}
                   <div style={{ marginBottom: 8 }}><strong>Time Slots:</strong></div>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
-                    {['morning', 'afternoon', 'evening'].map(slot => (
-                      <li key={slot} style={{ marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ textTransform: 'capitalize' }}>{slot}</span>
-                        <span style={{ fontWeight: 600, color: viewBookingDetails.booking.timeSlots.includes(slot) ? '#e11d48' : '#059669' }}>
-                          {viewBookingDetails.booking.timeSlots.includes(slot) ? 'Booked' : 'Available'}
-                        </span>
-                      </li>
-                    ))}
+                    {['morning', 'afternoon', 'evening'].map(slot => {
+                      const booking = viewBookingDetails.bookingDetailsForSeat[slot];
+                      return (
+                        <li key={slot} style={{ marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ textTransform: 'capitalize' }}>{slot}</span>
+                          <span style={{ fontWeight: 600, color: booking ? '#e11d48' : '#059669' }}>
+                            {booking ? `Booked by ${booking.Name || 'N/A'}` : 'Available'}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                   <button
                     style={{

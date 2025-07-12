@@ -8,7 +8,11 @@ export async function insertBooking(booking) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(booking),
   });
-  if (!res.ok) throw new Error('Failed to insert booking');
+  if (!res.ok) {
+    // IMPORTANT CHANGE: Parse the error response to get the specific message
+    const errorBody = await res.json();
+    throw new Error(errorBody.error || 'Failed to insert booking'); // Use backend's 'error' field
+  }
   return await res.json();
 }
 
