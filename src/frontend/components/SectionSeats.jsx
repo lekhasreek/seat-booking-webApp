@@ -4,7 +4,7 @@ import { getBookedSeatsBySectionAndDate, insertBooking } from '../../../backend/
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Header from "./Header.jsx";
-import Sidebar from "./Sidebar.jsx";
+
 import CalendarBar from "./CalendarBar.jsx";
 import SectionA from '../../assets/Section-A.svg';
 import SectionB from '../../assets/Section-B.svg';
@@ -453,8 +453,7 @@ const SectionSeats = ({ userId }) => {
   return (
     <SeatOverlayContext.Provider value={{ activeSeat, selectedDateForActive, setActiveSeat }}>
       <div style={{ background: '#f7fafd', minHeight: '100vh', display: 'flex' }}>
-      {/* Sidebar (fixed, only rendered once) */}
-      <Sidebar />
+      {/* Sidebar removed as per user request */}
       {/* Main Content Area */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* Fixed Header */}
@@ -490,13 +489,7 @@ const SectionSeats = ({ userId }) => {
             minHeight: 0,
           }}
         >
-          <button
-            className="self-start mb-4 text-blue-600 hover:underline"
-            style={{ marginTop: 24 }}
-            onClick={() => navigate(-1)}
-          >
-            ← Back to Floor Layout
-          </button>
+
           {/* CalendarBar controls the selected date for booking */}
           <CalendarBar
             daysToShow={7}

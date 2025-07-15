@@ -1,6 +1,6 @@
 import React from "react";
 import Header from "./Header";
-import Sidebar from "./Sidebar";
+// import Sidebar from "./Sidebar";
 // import CalendarBar from "./CalendarBar";
 import { useNavigate } from "react-router-dom";
 import FloorMap from "../../assets/FloorMap.svg";
@@ -20,7 +20,7 @@ const FloorLayout = () => {
   // Inline SVG import for interactivity
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f7fafd' }}>
-      <Sidebar />
+      {/* <Sidebar /> */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px', marginLeft: 0 }}>
         <Header />
         {/* <CalendarBar /> */}
