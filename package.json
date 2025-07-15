@@ -10,12 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.50.5",
+    "@supabase/supabase-js": "^2.51.0",
     "@types/react-router-dom": "^5.3.3",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
+    "nodemailer": "^7.0.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hot-toast": "^2.5.2",

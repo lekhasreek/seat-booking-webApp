@@ -623,22 +623,28 @@ const SectionSeats = ({ userId }) => {
                 <div style={{ width: '100%', marginBottom: 12 }}>
                   <label style={{ fontWeight: 500, marginBottom: 4, display: 'block' }}>Time Slot</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {['morning', 'afternoon', 'evening'].map(slot => (
-                      <label key={slot} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedTimeSlots.includes(slot)}
-                          onChange={e => {
-                            if (e.target.checked) {
-                              setSelectedTimeSlots(prev => [...prev, slot]);
-                            } else {
-                              setSelectedTimeSlots(prev => prev.filter(s => s !== slot));
-                            }
-                          }}
-                        />
-                        <span style={{ textTransform: 'capitalize' }}>{slot}</span>
-                      </label>
-                    ))}
+                    {['morning', 'afternoon', 'evening'].map(slot => {
+                      const seatLabel = showBooking.seatId.replace(/^Square-/, '');
+                      const isBooked = !!(bookedSeatsMap[selectedDate]?.[seatLabel]?.[slot]);
+                      return (
+                        <label key={slot} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: isBooked ? 0.5 : 1 }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedTimeSlots.includes(slot)}
+                            disabled={isBooked}
+                            onChange={e => {
+                              if (isBooked) return;
+                              if (e.target.checked) {
+                                setSelectedTimeSlots(prev => [...prev, slot]);
+                              } else {
+                                setSelectedTimeSlots(prev => prev.filter(s => s !== slot));
+                              }
+                            }}
+                          />
+                          <span style={{ textTransform: 'capitalize' }}>{slot}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
                 <button
@@ -737,15 +743,28 @@ const SectionSeats = ({ userId }) => {
                 >
                   <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Booking Details</div>
                   <div style={{ marginBottom: 8 }}><strong>Seat:</strong> {viewBookingDetails.seatLabel}</div>
-                  {/* Iterate through timeslots of the seat to show details */}
                   <div style={{ marginBottom: 8 }}><strong>Time Slots:</strong></div>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
                     {['morning', 'afternoon', 'evening'].map(slot => {
                       const booking = viewBookingDetails.bookingDetailsForSeat[slot];
+                      const isAvailable = !booking;
                       return (
-                        <li key={slot} style={{ marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+                        <li key={slot} style={{ marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: isAvailable ? 'pointer' : 'default' }}
+                          onClick={() => {
+                            if (isAvailable) {
+                              setShowBooking({
+                                seatId: viewBookingDetails.seatId,
+                                seatLabel: viewBookingDetails.seatLabel,
+                                date: selectedDate,
+                                preselectedSlot: slot
+                              });
+                              setSelectedTimeSlots([slot]);
+                              setViewBookingDetails(null);
+                            }
+                          }}
+                        >
                           <span style={{ textTransform: 'capitalize' }}>{slot}</span>
-                          <span style={{ fontWeight: 600, color: booking ? '#e11d48' : '#059669' }}>
+                          <span style={{ fontWeight: 600, color: booking ? '#e11d48' : '#059669', textDecoration: isAvailable ? 'underline' : 'none' }}>
                             {booking ? `Booked by ${booking.Name || 'N/A'}` : 'Available'}
                           </span>
                         </li>
