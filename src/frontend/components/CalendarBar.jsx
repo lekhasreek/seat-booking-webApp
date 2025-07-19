@@ -1,4 +1,6 @@
+
 import React, { useState } from 'react';
+import './CalendarBar.css';
 
 const getDates = (start, days) => {
   const arr = [];
@@ -38,36 +40,22 @@ const CalendarBar = ({ daysToShow = 7, onDateChange }) => {
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '32px 0 24px 0', justifyContent: 'center' }}>
-      <button onClick={handlePrev} style={{ border: 'none', background: 'none', fontSize: 24, color: '#bbb', cursor: 'pointer', borderRadius: 8, width: 40, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&lt;</button>
+    <div className="calendar-bar">
+      <button className="calendar-bar__arrow" onClick={handlePrev}>&lt;</button>
       {dates.map((date, idx) => {
         const isSelected = date.toDateString() === selected.toDateString();
         return (
           <div
             key={idx}
             onClick={() => handleSelect(date)}
-            style={{
-              minWidth: 80,
-              padding: '8px 0',
-              background: isSelected ? '#eaf1ff' : '#fff',
-              borderRadius: 12,
-              border: isSelected ? '2px solid #2563eb' : '1px solid #eee',
-              color: isSelected ? '#2563eb' : '#22223b',
-              fontWeight: isSelected ? 700 : 500,
-              textAlign: 'center',
-              cursor: 'pointer',
-              boxShadow: isSelected ? '0 2px 8px #e0e0e0' : undefined,
-              margin: '0 4px',
-              transition: 'all 0.15s',
-              fontFamily: 'Inter, sans-serif',
-            }}
+            className={`calendar-bar__date${isSelected ? ' calendar-bar__date--selected' : ''}`}
           >
-            <div style={{ fontSize: 14 }}>{formatDay(date)}</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{formatDate(date)}</div>
+            <div className="calendar-bar__day">{formatDay(date)}</div>
+            <div className="calendar-bar__num">{formatDate(date)}</div>
           </div>
         );
       })}
-      <button onClick={handleNext} style={{ border: 'none', background: 'none', fontSize: 24, color: '#bbb', cursor: 'pointer', borderRadius: 8, width: 40, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&gt;</button>
+      <button className="calendar-bar__arrow" onClick={handleNext}>&gt;</button>
     </div>
   );
 };

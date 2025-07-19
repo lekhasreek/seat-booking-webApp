@@ -1,0 +1,48 @@
+.calendar-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 32px 0 24px 0;
+  justify-content: center;
+}
+.calendar-bar__arrow {
+  border: none;
+  background: none;
+  font-size: 24px;
+  color: #bbb;
+  cursor: pointer;
+  border-radius: 8px;
+  width: 40px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.calendar-bar__date {
+  min-width: 80px;
+  padding: 8px 0;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #eee;
+  color: #22223b;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  margin: 0 4px;
+  transition: all 0.15s;
+  font-family: Inter, sans-serif;
+}
+.calendar-bar__date--selected {
+  background: #eaf1ff;
+  border: 2px solid #2563eb;
+  color: #2563eb;
+  font-weight: 700;
+  box-shadow: 0 2px 8px #e0e0e0;
+}
+.calendar-bar__day {
+  font-size: 14px;
+}
+.calendar-bar__num {
+  font-size: 18px;
+  font-weight: 700;
+}

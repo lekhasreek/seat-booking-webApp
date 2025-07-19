@@ -1,0 +1,45 @@
+.header-container {
+  width: 100%;
+  height: 80px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: #f7fafd;
+  box-shadow: 0 2px 8px #e0e0e0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 -10px;
+  overflow: hidden;
+}
+.header-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #22223b;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header-logo {
+  height: 40px;
+  border-radius: 20px;
+  object-fit: contain;
+}
+.header-avatar {
+  background: #fff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.header-avatar-text {
+  font-size: 18px;
+  font-weight: bold;
+  color: #22223b;
+}

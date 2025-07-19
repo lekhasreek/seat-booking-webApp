@@ -1,9 +1,9 @@
+
 import React from "react";
 import Header from "./Header";
-// import Sidebar from "./Sidebar";
-// import CalendarBar from "./CalendarBar";
 import { useNavigate } from "react-router-dom";
 import FloorMap from "../../assets/FloorMap.svg";
+import "./FloorLayout.css";
 
 const sectionAreas = [
   { id: "A", label: "Section A", svgId: "Section-A" },
@@ -19,17 +19,15 @@ const FloorLayout = () => {
   const navigate = useNavigate();
   // Inline SVG import for interactivity
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f7fafd' }}>
-      {/* <Sidebar /> */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px', marginLeft: 0 }}>
+    <div className="floor-layout-container">
+      <div className="floor-layout-main">
         <Header />
-        {/* <CalendarBar /> */}
         <div className="w-full flex justify-center">
-          <h1 className="text-3xl font-bold mb-8 text-gray-800" style={{ marginTop: 120, fontWeight: 'bold', letterSpacing: 0.5 }}>
+          <h1 className="text-3xl font-bold mb-8 text-gray-800 floor-layout-title">
             Workspace Floor Layout
           </h1>
         </div>
-        <div className="relative w-full max-w-5xl">
+        <div className="floor-layout-svg-wrapper">
           {/* eslint-disable-next-line jsx-a11y/alt-text */}
           <object
             type="image/svg+xml"
@@ -40,7 +38,6 @@ const FloorLayout = () => {
           />
           {/* Overlay clickable areas */}
           {sectionAreas.map((section) => {
-            // These coordinates should be adjusted to match the SVG layout
             let style = {};
             switch (section.id) {
               case "A":
@@ -70,8 +67,8 @@ const FloorLayout = () => {
             return (
               <div
                 key={section.id}
-                className="absolute group cursor-pointer"
-                style={{ ...style, position: "absolute", background: 'rgba(0,0,0,0)', zIndex: 10 }}
+                className="floor-layout-section group cursor-pointer"
+                style={style}
                 aria-label={section.label}
                 onClick={() => navigate(`/section/${section.id}`)}
                 tabIndex={0}
@@ -82,13 +79,12 @@ const FloorLayout = () => {
                   }
                 }}
               >
-                {/* Optional: Add a visual hover effect for the whole box */}
-                <div className="w-full h-full" style={{ width: '100%', height: '100%' }} />
+                <div className="w-full h-full" />
               </div>
             );
           })}
         </div>
-        <p className="mt-6 text-gray-500">Click a section to view or book seats.</p>
+        <p className="floor-layout-instruction">Click a section to view or book seats.</p>
       </div>
     </div>
   );

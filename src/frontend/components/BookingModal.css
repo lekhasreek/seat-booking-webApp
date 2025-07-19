@@ -1,0 +1,68 @@
+.booking-modal {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 50;
+  background: #fff;
+  border: 2px solid #2563eb;
+  border-radius: 8px;
+  padding: 18px;
+  transform: translate(-50%, -50%);
+  min-width: 260px;
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 24px rgba(9, 91, 190, 0.13);
+}
+.booking-modal-title {
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 18px;
+}
+.booking-modal-date {
+  width: 100%;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 15px;
+  background: #f3f4f6;
+  color: #222;
+  cursor: not-allowed;
+}
+.booking-modal-timeslot-label {
+  font-weight: 500;
+  margin-bottom: 4px;
+  display: block;
+}
+.booking-modal-timeslot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.booking-modal-timeslot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.booking-modal-book-btn {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 18px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  width: 100%;
+}
+.booking-modal-cancel-btn {
+  background: none;
+  color: #2563eb;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-weight: 500;
+  text-decoration: underline;
+}

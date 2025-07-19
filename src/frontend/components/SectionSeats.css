@@ -1,0 +1,53 @@
+.sectionseats-bg {
+  background: #f7fafd;
+  min-height: 100vh;
+  display: flex;
+}
+.sectionseats-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.sectionseats-header {
+  position: fixed;
+  top: 0;
+  left: 260px;
+  right: 0;
+  height: 80px;
+  z-index: 101;
+  background: #f7fafd;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  padding-left: 32px;
+  padding-right: 32px;
+}
+.sectionseats-content {
+  margin-top: 80px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+}
+.sectionseats-svg-container {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  aspect-ratio: 16/10;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+.sectionseats-title {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  color: #374151;
+}
+.sectionseats-info {
+  margin-top: 1.5rem;
+  color: #374151;
+}

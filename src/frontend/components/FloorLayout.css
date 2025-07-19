@@ -1,0 +1,36 @@
+.floor-layout-container {
+  display: flex;
+  min-height: 100vh;
+  background: #f7fafd;
+}
+.floor-layout-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 24px;
+  margin-left: 0;
+}
+.floor-layout-title {
+  margin-top: 120px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+.floor-layout-svg-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+}
+.floor-layout-section {
+  position: absolute;
+  background: rgba(0,0,0,0);
+  z-index: 10;
+}
+.floor-layout-section .w-full.h-full {
+  width: 100%;
+  height: 100%;
+}
+.floor-layout-instruction {
+  margin-top: 24px;
+  color: #6b7280;
+}

@@ -5,6 +5,11 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Header from "./Header.jsx";
 
+import './SectionSeats.css';
+
+import BookingModal from "./BookingModal.jsx";
+import Popover from "./Popover.jsx";
+
 import CalendarBar from "./CalendarBar.jsx";
 import SectionA from '../../assets/Section-A.svg';
 import SectionB from '../../assets/Section-B.svg';
@@ -452,53 +457,25 @@ const SectionSeats = ({ userId }) => {
 
   return (
     <SeatOverlayContext.Provider value={{ activeSeat, selectedDateForActive, setActiveSeat }}>
-      <div style={{ background: '#f7fafd', minHeight: '100vh', display: 'flex' }}>
-      {/* Sidebar removed as per user request */}
-      {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Fixed Header */}
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 260,
-            right: 0,
-            height: 80,
-            zIndex: 101,
-            background: '#f7fafd',
-            borderBottom: '1px solid #e5e7eb',
-            display: 'flex',
-            alignItems: 'center',
-            paddingLeft: 32,
-            paddingRight: 32,
-          }}
-        >
-          <Header />
-        </div>
-        {/* Scrollable Section View Only */}
-        <div
-          style={{
-            marginTop: 80,
-            paddingLeft: 24,
-            paddingRight: 24,
-            flex: 1,
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            minHeight: 0,
-          }}
-        >
+      <div className="sectionseats-bg">
+        {/* Main Content Area */}
+        <div className="sectionseats-main">
+          {/* Fixed Header */}
+          <div className="sectionseats-header">
+            <Header />
+          </div>
+          {/* Scrollable Section View Only */}
+          <div className="sectionseats-content">
 
           {/* CalendarBar controls the selected date for booking */}
           <CalendarBar
             daysToShow={7}
             onDateChange={date => setSelectedDate(date.toISOString().split('T')[0])}
           />
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">
-            {sectionId ? `Seats in Section ${sectionId}` : "Section"}
-          </h2>
-          <div className="relative w-full max-w-[800px] aspect-[16/10] bg-white rounded-lg shadow overflow-hidden" style={{ position: 'relative' }} ref={svgContainerRef}>
+            <h2 className="sectionseats-title">
+              {sectionId ? `Seats in Section ${sectionId}` : "Section"}
+            </h2>
+            <div className="sectionseats-svg-container" ref={svgContainerRef}>
             {/* Debug: Display extracted seat data */}
             {/*
             <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, background: '#fff', border: '1px solid #2563eb', borderRadius: 8, padding: 8, maxHeight: 200, overflow: 'auto', fontSize: 12, minWidth: 180 }}>
@@ -540,168 +517,57 @@ const SectionSeats = ({ userId }) => {
             ))}
 
             {/* Tooltip for hover on booked seat */}
+            {/* Tooltip for hover on booked seat (refactored) */}
             {hoverBookingDetails && hoverBookingDetails.details && (
-              <div
-                style={{
-                  position: 'fixed',
-                  left: hoverBookingDetails.x + 12,
-                  top: hoverBookingDetails.y + 12,
-                  background: '#fff',
-                  border: '1px solid #2563eb',
-                  borderRadius: 8,
-                  boxShadow: '0 2px 8px #0002',
-                  padding: '12px 18px',
-                  zIndex: 200,
-                  minWidth: 180,
-                  fontSize: 14,
-                  pointerEvents: 'none',
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>Booked by: {hoverBookingDetails.details.name}</div>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                  {hoverBookingDetails.details.timeSlotsStatus.map(slotStatus => (
-                    <li key={slotStatus.slot} style={{ marginBottom: 2, display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ textTransform: 'capitalize' }}>{slotStatus.slot}</span>
-                      <span style={{ fontWeight: 600, color: slotStatus.isBooked ? '#e11d48' : '#059669' }}>
-                        {slotStatus.isBooked ? `Booked (${slotStatus.bookedBy || 'N/A'})` : 'Available'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <Popover
+                x={hoverBookingDetails.x}
+                y={hoverBookingDetails.y}
+                details={hoverBookingDetails.details}
+              />
             )}
 
-            {/* Booking Form Modal */}
-            {showBooking && showBooking.seatId && (
-              <div
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: '50%',
-                  zIndex: 50,
-                  background: '#fff',
-                  border: '2px solid #2563eb',
-                  borderRadius: 8,
-                  padding: 18,
-                  transform: 'translate(-50%, -50%)',
-                  minWidth: 260,
-                  minHeight: 0,
-                  width: 'auto',
-                  height: 'auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  boxShadow: '0 4px 24px rgba(9, 91, 190, 0.13)'
-                }}
-              >
-                <div style={{ marginBottom: 16, fontWeight: 600, fontSize: 18 }}>Book Seat {showBooking.seatLabel}</div>
-                {/* Name input removed: Name will be filled from Users table using User_id */}
-                <input
-                  type="date"
-                  value={selectedDate}
-                  readOnly
-                  style={{
-                    width: '100%',
-                    padding: '6px 10px',
-                    marginBottom: 10,
-                    border: '1px solid #ccc',
-                    borderRadius: 4,
-                    fontSize: 15,
-                    background: '#f3f4f6',
-                    color: '#222',
-                    cursor: 'not-allowed'
-                  }}
-                />
-                <div style={{ width: '100%', marginBottom: 12 }}>
-                  <label style={{ fontWeight: 500, marginBottom: 4, display: 'block' }}>Time Slot</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {['morning', 'afternoon', 'evening'].map(slot => {
-                      const seatLabel = showBooking.seatId.replace(/^Square-/, '');
-                      const isBooked = !!(bookedSeatsMap[selectedDate]?.[seatLabel]?.[slot]);
-                      return (
-                        <label key={slot} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: isBooked ? 0.5 : 1 }}>
-                          <input
-                            type="checkbox"
-                            checked={selectedTimeSlots.includes(slot)}
-                            disabled={isBooked}
-                            onChange={e => {
-                              if (isBooked) return;
-                              if (e.target.checked) {
-                                setSelectedTimeSlots(prev => [...prev, slot]);
-                              } else {
-                                setSelectedTimeSlots(prev => prev.filter(s => s !== slot));
-                              }
-                            }}
-                          />
-                          <span style={{ textTransform: 'capitalize' }}>{slot}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-                <button
-                  onClick={async () => {
-                    // Changed: Use normalized seat label here for checks
-                    const currentSeatLabel = showBooking.seatId.replace(/^Square-/, '');
-                    if (
-                      showBooking &&
-                      showBooking.seatId &&
-                      selectedDate &&
-                      selectedTimeSlots.length > 0 &&
-                      !Object.keys(bookedSeatsMap[selectedDate]?.[currentSeatLabel] || {}).some(slot => selectedTimeSlots.includes(slot)) // Changed for multi-timeslot check
-                    ) {
-                      await handleBook(showBooking.seatId, selectedDate);
-                    } else {
-                        toast.error('Selected timeslot(s) are already booked for this seat.');
-                    }
-                  }}
-                  style={{
-                    background: '#2563eb',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '7px 18px',
-                    fontWeight: 600,
-                    cursor:
-                      showBooking && showBooking.seatId && selectedTimeSlots.length > 0 && !Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot)) // Changed
-                        ? 'pointer'
-                        : 'not-allowed',
-                    marginBottom: 6,
-                    width: '100%',
-                    opacity:
-                      showBooking && showBooking.seatId && selectedTimeSlots.length > 0 && !Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot)) // Changed
-                        ? 1
-                        : 0.6,
-                  }}
-                  disabled={
-                    Boolean(selectedTimeSlots.length === 0 ||
-                    (showBooking && showBooking.seatId && Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot)))) // Changed
-                  }
-                >
-                  {showBooking && showBooking.seatId && Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot)) ? 'Already Booked' : 'Book'}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowBooking(null);
-                    setActiveSeat(null, '');
-                    setSelectedTimeSlots([]); // Clear selected timeslots on cancel
-                  }}
-                  style={{
-                    background: 'none',
-                    color: '#2563eb',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '4px 10px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
+            {/* Booking Form Modal (refactored) */}
+            <BookingModal
+              isOpen={!!(showBooking && showBooking.seatId)}
+              onClose={() => {
+                setShowBooking(null);
+                setActiveSeat(null, '');
+                setSelectedTimeSlots([]);
+              }}
+              seatLabel={showBooking?.seatLabel}
+              selectedDate={selectedDate}
+              selectedTimeSlots={selectedTimeSlots}
+              onTimeSlotChange={(slot, checked, isBooked) => {
+                if (isBooked) return;
+                if (checked) {
+                  setSelectedTimeSlots(prev => [...prev, slot]);
+                } else {
+                  setSelectedTimeSlots(prev => prev.filter(s => s !== slot));
+                }
+              }}
+              onBook={async () => {
+                const currentSeatLabel = showBooking?.seatId?.replace(/^Square-/, '');
+                if (
+                  showBooking &&
+                  showBooking.seatId &&
+                  selectedDate &&
+                  selectedTimeSlots.length > 0 &&
+                  !Object.keys(bookedSeatsMap[selectedDate]?.[currentSeatLabel] || {}).some(slot => selectedTimeSlots.includes(slot))
+                ) {
+                  await handleBook(showBooking.seatId, selectedDate);
+                } else {
+                  toast.error('Selected timeslot(s) are already booked for this seat.');
+                }
+              }}
+              isBookDisabled={
+                selectedTimeSlots.length === 0 ||
+                (showBooking && showBooking.seatId && Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot)))
+              }
+              isAlreadyBooked={
+                showBooking && showBooking.seatId && Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot))
+              }
+              bookedSeatsMap={bookedSeatsMap}
+            />
 
             {/* Modal for viewing booking details */}
             {viewBookingDetails && viewBookingDetails.bookingDetailsForSeat && (
@@ -783,7 +649,7 @@ const SectionSeats = ({ userId }) => {
               </div>
             )}
           </div>
-          <p className="mt-6 text-gray-800">Click a seat to book. Booked seats are shown in grey.</p>
+            <p className="sectionseats-info">Click a seat to book. Booked seats are shown in grey.</p>
         </div>
       </div>
     </div>
