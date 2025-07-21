@@ -528,7 +528,25 @@ const SectionSeats = ({ userId }) => {
 
             {/* Booking Form Modal (refactored) */}
             <BookingModal
-              isOpen={!!(showBooking && showBooking.seatId)}
+              isOpen={!!(showBooking && showBooking.seatId && (() => {
+                // Only allow modal for today between 4 AM and 10 PM
+                const now = new Date();
+                const todayStr = new Date().toISOString().split('T')[0];
+                const hour = now.getHours();
+                if (selectedDate === todayStr && hour >= 4 && hour < 22) return true;
+                // If yesterday, show toast and prevent modal
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayStr = yesterday.toISOString().split('T')[0];
+                if (selectedDate === yesterdayStr) {
+                  setShowBooking(null);
+                  setActiveSeat(null, '');
+                  setSelectedTimeSlots([]);
+                  toast.error('Bookings cannot be done on past days');
+                  return false;
+                }
+                return false;
+              })())}
               onClose={() => {
                 setShowBooking(null);
                 setActiveSeat(null, '');
@@ -547,19 +565,28 @@ const SectionSeats = ({ userId }) => {
               }}
               onBook={async () => {
                 const currentSeatLabel = showBooking?.seatId?.replace(/^Square-/, '');
+                const now = new Date();
+                const todayStr = new Date().toISOString().split('T')[0];
+                const hour = now.getHours();
                 if (
                   showBooking &&
                   showBooking.seatId &&
-                  selectedDate &&
+                  selectedDate === todayStr &&
+                  hour >= 4 && hour < 22 &&
                   selectedTimeSlots.length > 0 &&
                   !Object.keys(bookedSeatsMap[selectedDate]?.[currentSeatLabel] || {}).some(slot => selectedTimeSlots.includes(slot))
                 ) {
                   await handleBook(showBooking.seatId, selectedDate);
                 } else {
-                  toast.error('Selected timeslot(s) are already booked for this seat.');
+                  toast.error('Bookings should be made between 4 AM to 10 PM on the current day only.');
                 }
               }}
               isBookDisabled={
+                selectedDate !== new Date().toISOString().split('T')[0] ||
+                (() => {
+                  const hour = new Date().getHours();
+                  return hour < 4 || hour >= 22;
+                })() ||
                 selectedTimeSlots.length === 0 ||
                 (showBooking && showBooking.seatId && Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot)))
               }
