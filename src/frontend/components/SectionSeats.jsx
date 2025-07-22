@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from 'react-router-dom';
 import { getBookedSeatsBySectionAndDate, insertBooking } from '../../../backend/bookings';
+import { deleteBooking } from '../../../backend/bookings';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Header from "./Header.jsx";
@@ -235,32 +236,35 @@ const SectionSeats = ({ userId }) => {
   const [bookedSeatsMap, setBookedSeatsMap] = useState({}); // Renamed state
 
   // Fetch booked seats from backend for this section and date
-  useEffect(() => {
-    async function fetchBooked() {
-      if (!sectionId || !selectedDate) return;
-      try {
-        const { bookings } = await getBookedSeatsBySectionAndDate(sectionId, selectedDate); // `bookings` is an array
+// Fetch booked seats from backend for this section and date
+async function fetchBooked() {
+  if (!sectionId || !selectedDate) return;
+  try {
+    const { bookings } = await getBookedSeatsBySectionAndDate(sectionId, selectedDate); // `bookings` is an array
 
-        const newBookedSeatDataForDate = {};
-        bookings.forEach(booking => {
-          // Store actual booking object under Seat_Number and Timeslot
-          if (!newBookedSeatDataForDate[booking.Seat_Number]) { // Changed: Use Seat_Number as key here
-            newBookedSeatDataForDate[booking.Seat_Number] = {};
-          }
-          newBookedSeatDataForDate[booking.Seat_Number][booking.Timeslot] = booking; // Changed: Use Seat_Number here
-        });
-
-        setBookedSeatsMap(prev => ({
-          ...prev,
-          [selectedDate]: newBookedSeatDataForDate // Store the mapped data for the specific date
-        }));
-        console.log('Fetched and mapped booked seats:', newBookedSeatDataForDate);
-      } catch (err) {
-        console.error('Failed to fetch booked seats:', err);
+    const newBookedSeatDataForDate = {};
+    bookings.forEach(booking => {
+      // Store actual booking object under Seat_Number and Timeslot
+      if (!newBookedSeatDataForDate[booking.Seat_Number]) { // Changed: Use Seat_Number as key here
+        newBookedSeatDataForDate[booking.Seat_Number] = {};
       }
-    }
-    fetchBooked();
-  }, [sectionId, selectedDate]);
+      newBookedSeatDataForDate[booking.Seat_Number][booking.Timeslot] = booking; // Changed: Use Seat_Number here
+    });
+
+    setBookedSeatsMap(prev => ({
+      // Create a new object reference for React to detect changes
+      ...prev,
+      [selectedDate]: { ...newBookedSeatDataForDate }
+    }));
+    console.log('Fetched and mapped booked seats:', newBookedSeatDataForDate);
+  } catch (err) {
+    console.error('Failed to fetch booked seats:', err);
+  }
+}
+
+useEffect(() => {
+  fetchBooked();
+}, [sectionId, selectedDate]);
 
   const [seats, setSeats] = useState([]);
 
@@ -567,6 +571,24 @@ const SectionSeats = ({ userId }) => {
                 showBooking && showBooking.seatId && Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot))
               }
               bookedSeatsMap={bookedSeatsMap}
+              onDelete={async () => {
+                // Find bookingId for this seat, date, and timeslot
+                const seatLabel = showBooking?.seatId?.replace(/^Square-/, '');
+                const timeslot = selectedTimeSlots[0]; // Assume single timeslot for simplicity
+                const bookingDetails = bookedSeatsMap[selectedDate]?.[seatLabel]?.[timeslot];
+                if (!bookingDetails || !bookingDetails.Booking_id) {
+                  toast.error('Booking not found for cancellation.');
+                  return;
+                }
+                try {
+                  await deleteBooking(bookingDetails.Booking_id);
+                  toast.success('Booking cancelled.');
+                  setShowBooking(null);
+                  // Optionally refresh bookings map here
+                } catch (err) {
+                  toast.error('Failed to cancel booking: ' + err.message);
+                }
+              }}
             />
 
             {/* Modal for viewing booking details */}
@@ -626,6 +648,28 @@ const SectionSeats = ({ userId }) => {
                           <span style={{ fontWeight: 600, color: booking ? '#e11d48' : '#059669', textDecoration: isAvailable ? 'underline' : 'none' }}>
                             {booking ? `Booked by ${booking.Name || 'N/A'}` : 'Available'}
                           </span>
+                          {/* Delete button for booked slots only */}
+                          {booking && booking.Booking_id && (
+                            <span style={{ display: 'flex', gap: '8px', marginLeft: 8 }}>
+                              <button
+                                title="Delete booking"
+                                style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: 14, padding: '2px 10px', fontWeight: 600 }}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  if (window.confirm('Are you sure you want to delete this booking?')) {
+                                    deleteBooking(booking.Booking_id)
+                                      .then(() => {
+                                        toast.success('Booking deleted.');
+                                        setViewBookingDetails(null);
+                                        // Auto-refresh seat map
+                                        fetchBooked();
+                                      })
+                                      .catch(err => toast.error('Failed to delete booking: ' + err.message));
+                                  }
+                                }}
+                              >Delete</button>
+                            </span>
+                          )}
                         </li>
                       );
                     })}
