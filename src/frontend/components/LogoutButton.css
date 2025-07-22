@@ -1,0 +1,29 @@
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: #2563eb;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 16px;
+  padding: 8px 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #2563eb11;
+  margin-right: 0;
+  transition: background 0.18s, color 0.18s, border 0.18s;
+}
+
+.logout-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px #0002;
+  z-index: 1000;
+  min-width: 140px;
+  margin-top: 4px;
+}
