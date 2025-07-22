@@ -19,7 +19,7 @@
   justify-content: center;
 }
 .calendar-bar__date {
-  min-width: 80px;
+  min-width: 110px;
   padding: 8px 0;
   background: #fff;
   border-radius: 12px;
