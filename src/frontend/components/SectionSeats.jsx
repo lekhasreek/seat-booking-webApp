@@ -111,15 +111,6 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
       {seatLabel} {/* Display the normalized seat label */}
     </div>
   );
-}
-
-
-// Utility to extract seat positions from SVG <g> or <path> with id format Seat-A1, Seat-A2, ...
-function extractSeatsFromSVG(svgText) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgText, "image/svg+xml");
-  // Find all <g> with id like Seat-A1, Seat-A2, ...
-  const seatGroups = Array.from(doc.querySelectorAll('g[id^="Seat-"]'));
   const seats = [];
   for (const g of seatGroups) {
     const id = g.getAttribute('id') || '';
@@ -611,10 +602,11 @@ useEffect(() => {
                 <div
                   style={{
                     background: '#fff',
-                    borderRadius: 12,
+                    borderRadius: 16,
                     boxShadow: '0 4px 24px #0002',
-                    padding: 24,
-                    minWidth: 260,
+                    padding: '32px 36px 28px 36px',
+                    minWidth: 320,
+                    maxWidth: 400,
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
@@ -622,15 +614,23 @@ useEffect(() => {
                   }}
                   onClick={e => e.stopPropagation()}
                 >
-                  <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Booking Details</div>
-                  <div style={{ marginBottom: 8 }}><strong>Seat:</strong> {viewBookingDetails.seatLabel}</div>
-                  <div style={{ marginBottom: 8 }}><strong>Time Slots:</strong></div>
+                  <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 18, letterSpacing: 0.2 }}>Booking Details</div>
+                  <div style={{ marginBottom: 12, fontSize: 17 }}><strong>Seat:</strong> <span style={{ fontWeight: 600 }}>{viewBookingDetails.seatLabel}</span></div>
+                  <div style={{ marginBottom: 12, fontSize: 16, fontWeight: 600 }}>Time Slots:</div>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
                     {['morning', 'afternoon', 'evening'].map(slot => {
                       const booking = viewBookingDetails.bookingDetailsForSeat[slot];
                       const isAvailable = !booking;
                       return (
-                        <li key={slot} style={{ marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: isAvailable ? 'pointer' : 'default' }}
+                        <li key={slot} style={{
+                          marginBottom: 12,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          cursor: isAvailable ? 'pointer' : 'default',
+                          padding: '0 0 0 2px',
+                          minHeight: 32,
+                        }}
                           onClick={() => {
                             if (isAvailable) {
                               setShowBooking({
@@ -644,8 +644,15 @@ useEffect(() => {
                             }
                           }}
                         >
-                          <span style={{ textTransform: 'capitalize' }}>{slot}</span>
-                          <span style={{ fontWeight: 600, color: booking ? '#e11d48' : '#059669', textDecoration: isAvailable ? 'underline' : 'none' }}>
+                          <span style={{ textTransform: 'capitalize', fontSize: 15 }}>{slot}</span>
+                          <span style={{
+                            fontWeight: 600,
+                            color: booking ? '#e11d48' : '#059669',
+                            textDecoration: isAvailable ? 'underline' : 'none',
+                            fontSize: 15,
+                            marginLeft: 8,
+                            marginRight: booking ? 10 : 0,
+                          }}>
                             {booking ? `Booked by ${booking.Name || 'N/A'}` : 'Available'}
                           </span>
                           {/* Delete button for booked slots only */}
@@ -653,7 +660,19 @@ useEffect(() => {
                             <span style={{ display: 'flex', gap: '8px', marginLeft: 8 }}>
                               <button
                                 title="Delete booking"
-                                style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: 14, padding: '2px 10px', fontWeight: 600 }}
+                                style={{
+                                  background: '#e11d48',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  fontSize: 14,
+                                  padding: '3px 16px',
+                                  fontWeight: 700,
+                                  letterSpacing: 0.5,
+                                  boxShadow: '0 2px 8px #e11d4822',
+                                  transition: 'background 0.15s',
+                                }}
                                 onClick={e => {
                                   e.stopPropagation();
                                   if (window.confirm('Are you sure you want to delete this booking?')) {
@@ -676,14 +695,17 @@ useEffect(() => {
                   </ul>
                   <button
                     style={{
-                      marginTop: 16,
+                      marginTop: 24,
                       background: '#2563eb',
                       color: '#fff',
                       border: 'none',
-                      borderRadius: 6,
-                      padding: '7px 18px',
-                      fontWeight: 600,
+                      borderRadius: 8,
+                      padding: '10px 32px',
+                      fontWeight: 700,
+                      fontSize: 16,
+                      letterSpacing: 0.5,
                       cursor: 'pointer',
+                      boxShadow: '0 2px 8px #2563eb22',
                     }}
                     onClick={() => setViewBookingDetails(null)}
                   >
