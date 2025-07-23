@@ -3,10 +3,11 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const apiUrl = process.env.VITE_API_URL;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!apiUrl) {
-  throw new Error('VITE_API_URL must be set in environment variables');
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set in environment variables');
 }
 
-export const supabase = createClient(apiUrl, ''); // Empty key as backend handles auth
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
