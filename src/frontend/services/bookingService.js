@@ -1,5 +1,5 @@
 // Frontend API calls for bookings
-import { API_ENDPOINTS } from './config/api.js';
+import { API_ENDPOINTS } from '../config/api.js';
 
 export async function insertBooking(booking) {
   const res = await fetch(API_ENDPOINTS.BOOKINGS, {
