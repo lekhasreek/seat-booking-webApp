@@ -57,7 +57,6 @@ app.get('/api/bookings/date/:date/timeslot/:timeslot', async (req, res) => {
       .gte('created_at', `${date}T00:00:00`)
       .lte('created_at', `${date}T23:59:59`);
 
-    console.log(`Fetched bookings for date ${date}, timeslot ${timeslot}:`, data, 'Error:', error);
     if (error) {
       console.error('Error fetching bookings by date/timeslot:', error);
       return res.status(500).json({ error: error.message, details: error.details });
@@ -82,7 +81,6 @@ app.get('/api/bookings/section/:section/date/:date/timeslot/:timeslot', async (r
       .eq('Timeslot', timeslot)
       .gte('created_at', `${date}T00:00:00`)
       .lte('created_at', `${date}T23:59:59`);
-    console.log(`Fetched bookings for section ${section}, date ${date}, timeslot ${timeslot}:`, data, 'Error:', error);
     if (error) {
       console.error('Error fetching bookings by section/date/timeslot:', error);
       return res.status(500).json({ error: error.message, details: error.details });
@@ -106,7 +104,6 @@ app.get('/api/bookings/section/:section/date/:date', async (req, res) => {
       .ilike('Seat_Number', `${section}%`)
       .gte('created_at', `${date}T00:00:00`)
       .lte('created_at', `${date}T23:59:59`);
-    console.log(`Fetched bookings for section ${section} and date ${date}:`, data, 'Error:', error);
     if (error) {
       console.error('Error fetching bookings by section/date:', error);
       return res.status(500).json({ error: error.message, details: error.details });
@@ -127,7 +124,6 @@ app.get('/api/bookings', async (req, res) => {
     const { data, error } = await supabase
       .from('Bookings')
       .select('*');
-    console.log('Fetched bookings:', data, 'Error:', error);
     if (error) {
       console.error('Error fetching bookings:', error);
       return res.status(500).json({ error: error.message, details: error.details });
@@ -193,21 +189,18 @@ app.post('/api/bookings', async (req, res) => {
 
   // Check if any bookings were found for this seat, date, and timeslot
   if (existingBookings && existingBookings.length > 0) { 
-    console.log(`Booking conflict: Seat ${Seat_Number_db} (${Seat_id}) already booked for ${created_at} at ${Timeslot}`);
     // Respond with a 409 Conflict status and a specific error message for the frontend
     return res.status(409).json({ error: 'This seat is already booked for the selected date and timeslot.' });
   }
   // =========================================================================
 
   // Look up User's Name using User_id (for display/record keeping in booking)
-  console.log('Looking up user with User_id:', User_id);
   const { data: userRows, error: userError } = await supabase
     .from('Users')
     .select('User_id, Name')
     .eq('User_id', User_id)
     .maybeSingle();
 
-  console.log('User lookup result:', userRows, 'Error:', userError);
   if (userError || !userRows || !userRows.User_id || !userRows.Name) {
     console.error('User lookup failed:', userError, userRows);
     return res.status(400).json({ error: 'Invalid user ID or user not found', details: userError, User_id });

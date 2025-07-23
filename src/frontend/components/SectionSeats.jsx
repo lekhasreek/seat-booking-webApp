@@ -6,6 +6,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Header from "./Header.jsx";
 import { API_ENDPOINTS } from '../config/api.js';
+import { useRealtime } from '../contexts/RealtimeContext.jsx';
 
 import './SectionSeats.css';
 
@@ -227,6 +228,12 @@ const SectionSeats = ({ userId }) => {
   // Bookings are now specific to date: { [date]: { [seatLabel]: { [timeslot]: bookingObject } } }
   const [bookedSeatsMap, setBookedSeatsMap] = useState({}); // Renamed state
 
+  // Get real-time context
+  const { subscribeToBookings, unsubscribeFromBookings, bookingsBySection } = useRealtime();
+
+  // Track active subscription
+  const activeSubscriptionRef = useRef(null);
+
   // Fetch booked seats from backend for this section and date
 // Fetch booked seats from backend for this section and date
 async function fetchBooked() {
@@ -248,15 +255,99 @@ async function fetchBooked() {
       ...prev,
       [selectedDate]: { ...newBookedSeatDataForDate }
     }));
-    console.log('Fetched and mapped booked seats:', newBookedSeatDataForDate);
   } catch (err) {
     console.error('Failed to fetch booked seats:', err);
   }
 }
 
 useEffect(() => {
+  // Initial fetch
   fetchBooked();
-}, [sectionId, selectedDate]);
+  
+  // Set up real-time subscription
+  if (sectionId && selectedDate) {
+    console.log(`🔄 Setting up subscription for ${sectionId} on ${selectedDate}`);
+    
+    // Unsubscribe from previous subscription if exists
+    if (activeSubscriptionRef.current) {
+      console.log('🧹 Cleaning up previous subscription');
+      unsubscribeFromBookings(activeSubscriptionRef.current);
+    }
+    
+    // Subscribe to real-time updates
+    const setupSubscription = async () => {
+      const subscriptionKey = await subscribeToBookings(sectionId, selectedDate, (update) => {
+        // Force re-fetch to ensure we have the latest data
+        fetchBooked();
+        
+        // Also update local state immediately for instant UI update
+        setBookedSeatsMap(prev => {
+          const updated = { ...prev };
+          
+          // Ensure section and date exist
+          if (!updated[selectedDate]) updated[selectedDate] = {};
+          
+          const { eventType, seatNumber, booking } = update;
+          
+          if (eventType === 'DELETE') {
+            // Remove the booking
+            if (updated[selectedDate][seatNumber] && booking?.Timeslot) {
+              delete updated[selectedDate][seatNumber][booking.Timeslot];
+              
+              // Clean up empty objects
+              if (Object.keys(updated[selectedDate][seatNumber]).length === 0) {
+                delete updated[selectedDate][seatNumber];
+              }
+            }
+          } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
+            // Add or update the booking
+            if (!updated[selectedDate][seatNumber]) {
+              updated[selectedDate][seatNumber] = {};
+            }
+            updated[selectedDate][seatNumber][booking.Timeslot] = booking;
+          }
+          
+          console.log('📊 Updated booking state:', updated[selectedDate]);
+          return updated;
+        });
+      });
+      
+      activeSubscriptionRef.current = subscriptionKey;
+    };
+    
+    setupSubscription();
+    
+    // Set up aggressive refresh for instant updates (every 2 seconds)
+    const refreshInterval = setInterval(() => {
+      fetchBooked();
+    }, 2000);
+    
+    // Also set up focus refresh - when user switches back to tab
+    const handleFocus = () => {
+      fetchBooked();
+    };
+    
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchBooked();
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Cleanup function
+    return () => {
+      if (activeSubscriptionRef.current) {
+        unsubscribeFromBookings(activeSubscriptionRef.current);
+        activeSubscriptionRef.current = null;
+      }
+      clearInterval(refreshInterval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }
+}, [sectionId, selectedDate, subscribeToBookings, unsubscribeFromBookings]);
 
   const [seats, setSeats] = useState([]);
 
@@ -272,20 +363,10 @@ useEffect(() => {
 
   // Log screen coordinates for each seat after render (including Square-A* paths)
   useEffect(() => {
-    Object.entries(seatRefs.current).forEach(([id, el]) => {
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        console.log(`Seat ${id} screen coords:`, rect);
-      }
-    });
     // Also log all Square-* paths if present
     const svg = document.querySelector('svg');
     if (svg) {
       const squarePaths = svg.querySelectorAll('path[id^="Square-"]');
-      squarePaths.forEach(path => {
-        const rect = path.getBoundingClientRect();
-        console.log(`Square seat ${path.id} screen coords:`, rect);
-      });
     }
   }, [seats]);
 
@@ -297,7 +378,6 @@ useEffect(() => {
         .then(svgText => {
           setSvgText(svgText); // Save for inline rendering
           const seatBoxes = extractSeatsFromSVG(svgText);
-          console.log('Extracted seats:', seatBoxes);
           setSeats(Array.isArray(seatBoxes) ? seatBoxes.filter(Boolean) : []);
         });
     } else {
@@ -353,6 +433,16 @@ useEffect(() => {
         newBookedSeatDataForDate[booking.Seat_Number][booking.Timeslot] = booking;
       });
       setBookedSeatsMap(prev => ({ ...prev, [date]: newBookedSeatDataForDate })); // Use bookedSeatsMap
+      
+      // Additional aggressive refreshes to ensure instant updates
+      setTimeout(() => {
+        fetchBooked();
+      }, 500);
+      
+      setTimeout(() => {
+        fetchBooked();
+      }, 1500);
+      
       setShowBooking(null);
       setSelectedTimeSlots([]);
       toast.success(
@@ -525,23 +615,17 @@ useEffect(() => {
             {/* Booking Form Modal (refactored) */}
             <BookingModal
               isOpen={!!(showBooking && showBooking.seatId && (() => {
-                // Only allow modal for today between 4 AM and 10 PM
+                // Only prevent modal for past days
                 const now = new Date();
                 const todayStr = new Date().toISOString().split('T')[0];
-                const hour = now.getHours();
-                if (selectedDate === todayStr && hour >= 4 && hour < 22) return true;
-                // If yesterday, show toast and prevent modal
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayStr = yesterday.toISOString().split('T')[0];
-                if (selectedDate === yesterdayStr) {
+                if (selectedDate < todayStr) {
                   setShowBooking(null);
                   setActiveSeat(null, '');
                   setSelectedTimeSlots([]);
                   toast.error('Bookings cannot be done on past days');
                   return false;
                 }
-                return false;
+                return true;
               })())}
               onClose={() => {
                 setShowBooking(null);
@@ -561,28 +645,21 @@ useEffect(() => {
               }}
               onBook={async () => {
                 const currentSeatLabel = showBooking?.seatId?.replace(/^Square-/, '');
-                const now = new Date();
                 const todayStr = new Date().toISOString().split('T')[0];
-                const hour = now.getHours();
                 if (
                   showBooking &&
                   showBooking.seatId &&
-                  selectedDate === todayStr &&
-                  hour >= 4 && hour < 22 &&
+                  selectedDate >= todayStr &&
                   selectedTimeSlots.length > 0 &&
                   !Object.keys(bookedSeatsMap[selectedDate]?.[currentSeatLabel] || {}).some(slot => selectedTimeSlots.includes(slot))
                 ) {
                   await handleBook(showBooking.seatId, selectedDate);
                 } else {
-                  toast.error('Bookings should be made between 4 AM to 10 PM on the current day only.');
+                  toast.error('Cannot book seats for past dates or selected timeslots are already booked.');
                 }
               }}
               isBookDisabled={
-                selectedDate !== new Date().toISOString().split('T')[0] ||
-                (() => {
-                  const hour = new Date().getHours();
-                  return hour < 4 || hour >= 22;
-                })() ||
+                selectedDate < new Date().toISOString().split('T')[0] ||
                 selectedTimeSlots.length === 0 ||
                 (showBooking && showBooking.seatId && Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot)))
               }
@@ -603,7 +680,8 @@ useEffect(() => {
                   await deleteBooking(bookingDetails.Booking_id);
                   toast.success('Booking cancelled.');
                   setShowBooking(null);
-                  // Optionally refresh bookings map here
+                  // Immediately refresh booking data
+                  fetchBooked();
                 } catch (err) {
                   toast.error('Failed to cancel booking: ' + err.message);
                 }

@@ -7,6 +7,7 @@ import Signup from "./components/Signup";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { supabase } from "./supabaseClient";
+import { RealtimeProvider } from "./contexts/RealtimeContext";
 // Removed: import { upsertUser } from "../../backend/users"; // No longer needed as DB trigger handles user creation
 
 // Expose toast globally for debug button
@@ -127,15 +128,17 @@ const App = () => {
   return (
     <>
       <ToastContainer position="top-right" />
-      <Router>
-        <Routes>
-          {/* Pass the userId prop to FloorLayout and SectionSeats */}
-          <Route path="/" element={<FloorLayout userId={userId} />} />
-          <Route path="/section/:sectionId" element={<SectionSeats userId={userId} />} />
-          {/* Redirect any unmatched routes to the home page */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+      <RealtimeProvider>
+        <Router>
+          <Routes>
+            {/* Pass the userId prop to FloorLayout and SectionSeats */}
+            <Route path="/" element={<FloorLayout userId={userId} />} />
+            <Route path="/section/:sectionId" element={<SectionSeats userId={userId} />} />
+            {/* Redirect any unmatched routes to the home page */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </RealtimeProvider>
     </>
   );
 };
