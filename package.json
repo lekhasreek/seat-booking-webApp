@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "build:frontend": "tsc -b && vite build",
-    "deploy:vercel": "vercel --prod"
+    "deploy:vercel": "vercel --prod",
+    "vercel-build": "npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.52.0",
