@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:frontend": "tsc -b && vite build",
+    "deploy:vercel": "vercel --prod"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.52.0",

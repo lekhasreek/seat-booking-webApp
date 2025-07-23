@@ -4,6 +4,7 @@ import { getBookedSeatsBySectionAndDate, insertBooking } from '../../../backend/
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Header from "./Header.jsx";
+import { API_ENDPOINTS } from '../config/api.js';
 
 import './SectionSeats.css';
 
