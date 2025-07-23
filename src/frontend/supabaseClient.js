@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
+const apiUrl = import.meta.env.VITE_API_URL;
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.REACT_APP_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.REACT_APP_SUPABASE_ANON_KEY;
+if (!apiUrl) {
+  throw new Error('VITE_API_URL must be set in environment variables');
+}
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(apiUrl, ''); // Empty key as backend handles auth

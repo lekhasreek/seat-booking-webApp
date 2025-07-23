@@ -1,5 +1,5 @@
 // Backend logic for Users table
-import { supabase } from '../src/frontend/supabaseClient';
+import { supabase } from './supabaseClient';
 
 export async function insertUser({ id, email, name }) {
   return await supabase.from('Users').insert([
