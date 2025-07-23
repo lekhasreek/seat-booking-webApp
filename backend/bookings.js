@@ -1,6 +1,6 @@
-// Backend logic for Bookings table
+// Backend logic for Bookings table 
 // All functions now call the backend Express API instead of Supabase directly
-const API_BASE = 'http://localhost:4000/api/bookings';
+const API_BASE = import.meta.env.VITE_API_URL + '/bookings';
 
 export async function insertBooking(booking) {
   const res = await fetch(`${API_BASE}`, {
