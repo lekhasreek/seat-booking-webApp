@@ -11,8 +11,9 @@ const app = express();
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? [
-        'https://your-frontend-url.vercel.app',
-        'https://your-frontend-url.onrender.com'
+        process.env.FRONTEND_URL || 'https://seat-booking-webapp.vercel.app',
+        /\.vercel\.app$/,
+        /\.onrender\.com$/
       ]
     : ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true
