@@ -1,17 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-const apiUrl = import.meta.env.VITE_API_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-console.log('VITE_API_URL:', apiUrl); // Debugging log
-console.log('VITE_SUPABASE_ANON_KEY:', supabaseKey ? 'Present' : 'Missing'); // Debugging log
+console.log('VITE_SUPABASE_URL:', supabaseUrl ? 'Present' : 'Missing'); // Debugging log
+console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Present' : 'Missing'); // Debugging log
 
-if (!apiUrl) {
-  throw new Error('VITE_API_URL must be set in environment variables');
+if (!supabaseUrl) {
+  throw new Error('VITE_SUPABASE_URL must be set in environment variables');
 }
 
-if (!supabaseKey) {
+if (!supabaseAnonKey) {
   throw new Error('VITE_SUPABASE_ANON_KEY must be set in environment variables');
 }
 
-export const supabase = createClient(apiUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);

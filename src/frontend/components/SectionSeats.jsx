@@ -330,7 +330,7 @@ const SectionSeats = ({ userId }) => {
     let seatUUID = null;
     try {
       // Fetch all seats from backend (or cache)
-      const res = await fetch('http://localhost:4000/api/seats');
+      const res = await fetch(API_ENDPOINTS.SEATS);
       const allSeats = await res.json();
       // Find the seat with matching Seat_Number
       const match = allSeats.seats.find(s => s.Seat_Number === seatNumber);

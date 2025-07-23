@@ -6,7 +6,19 @@ import { supabase } from './supabaseClient.js'; // Ensure this path is correct f
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+// Configure CORS for production
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? [
+        'https://your-frontend-url.vercel.app',
+        'https://your-frontend-url.onrender.com'
+      ]
+    : ['http://localhost:3000', 'http://localhost:5173'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // ===============================================
