@@ -265,3 +265,46 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
+
+// ===============================================
+// DELETE /api/bookings/:bookingId - Cancel a booking
+// ===============================================
+app.delete('/api/bookings/:bookingId', async (req, res) => {
+  const { bookingId } = req.params;
+  try {
+    const { error } = await supabase
+      .from('Bookings')
+      .delete()
+      .eq('Booking_id', bookingId);
+    if (error) {
+      console.error('Error deleting booking:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    res.status(500).json({ error: 'Unexpected server error', details: err.message });
+  }
+});
+
+// ===============================================
+// PUT /api/bookings/:bookingId - Edit a booking (change seat or timeslot)
+// ===============================================
+app.put('/api/bookings/:bookingId', async (req, res) => {
+  const { bookingId } = req.params;
+  const updateFields = req.body; // { Seat_id, Timeslot, Date, ... }
+  try {
+    const { error } = await supabase
+      .from('Bookings')
+      .update(updateFields)
+      .eq('Booking_id', bookingId);
+    if (error) {
+      console.error('Error updating booking:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    res.status(500).json({ error: 'Unexpected server error', details: err.message });
+  }
+});

@@ -11,6 +11,8 @@ const BookingModal = ({
   isBookDisabled,
   isAlreadyBooked,
   bookedSeatsMap,
+      onEdit,
+      onDelete,
 }) => {
   if (!isOpen) return null;
   return (
@@ -56,6 +58,25 @@ const BookingModal = ({
       >
         {isAlreadyBooked ? 'Already Booked' : 'Book'}
       </button>
+          {/* Show Edit/Delete only if seat is already booked */}
+          {isAlreadyBooked && (
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'center' }}>
+              <button
+                onClick={() => typeof onEdit === 'function' && onEdit()}
+                className="booking-modal-edit-btn"
+                style={{ background: '#f0ad4e', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => typeof onDelete === 'function' && onDelete()}
+                className="booking-modal-delete-btn"
+                style={{ background: '#d9534f', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Delete
+              </button>
+            </div>
+          )}
       <button
         onClick={onClose}
         className="booking-modal-cancel-btn"
