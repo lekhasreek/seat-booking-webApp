@@ -1,4 +1,4 @@
-// Backend logic for Users table
+// Backend logic for Users tables
 import { supabase } from './supabaseClient';
 
 export async function insertUser({ id, email, name }) {
