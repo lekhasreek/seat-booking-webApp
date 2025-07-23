@@ -233,6 +233,33 @@ app.post('/api/bookings', async (req, res) => {
   res.status(201).json({ data });
 });
 
+// ===============================================
+// POST /api/users - Upsert a user
+// ===============================================
+app.post('/api/users', async (req, res) => {
+  const { User_id, email, Name } = req.body;
+  
+  if (!User_id || !email || !Name) {
+    return res.status(400).json({ error: 'Missing required fields: User_id, email, Name' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('Users')
+      .upsert([{ User_id, email, Name }]);
+
+    if (error) {
+      console.error('Error upserting user:', error);
+      return res.status(500).json({ error: error.message, details: error.details });
+    }
+    
+    res.status(201).json({ data });
+  } catch (err) {
+    console.error('Unexpected error upserting user:', err);
+    res.status(500).json({ error: 'Unexpected server error', details: err.message });
+  }
+});
+
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from 'react-router-dom';
-import { getBookedSeatsBySectionAndDate, insertBooking } from '../../../backend/bookings';
+import { getBookedSeatsBySectionAndDate, insertBooking } from '../services/bookingService.js';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Header from "./Header.jsx";

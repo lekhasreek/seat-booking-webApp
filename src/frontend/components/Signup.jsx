@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { supabase } from '../supabaseClient';
-import { upsertUser } from '../../../backend/users';
+import { upsertUser } from '../services/userService.js';
 const cprimeLogoSrc = '/cprime-logo.png';
 import './Signup.css';
 
