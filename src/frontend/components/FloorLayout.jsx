@@ -1,8 +1,9 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Header from "./Header";
 import { useNavigate } from "react-router-dom";
 import FloorMap from "../../assets/FloorMap.svg";
+import { getBookedSeatsBySectionAndDate } from '../../../backend/bookings';
 import "./FloorLayout.css";
 
 const sectionAreas = [
@@ -15,9 +16,43 @@ const sectionAreas = [
   { id: "G", label: "Section G", svgId: "Section-G" },
 ];
 
+
+const TOTAL_SEATS = {
+  A: 16, B: 13, C: 9, D: 10, E:8 , F: 8, G: 10 // Adjust as per your actual seat count per section
+};
+
 const FloorLayout = () => {
   const navigate = useNavigate();
-  // Inline SVG import for interactivity
+  const [hoveredSection, setHoveredSection] = useState(null);
+  const [availableBySection, setAvailableBySection] = useState({});
+
+  useEffect(() => {
+    // Fetch available seats for today for all sections
+    const fetchAll = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const result = {};
+      for (const section of sectionAreas) {
+        try {
+          const { bookings } = await getBookedSeatsBySectionAndDate(section.id, today);
+          // Count booked by slot
+          const slotCounts = { morning: 0, afternoon: 0, evening: 0 };
+          bookings.forEach(b => {
+            if (slotCounts[b.Timeslot] !== undefined) slotCounts[b.Timeslot]++;
+          });
+          result[section.id] = {
+            morning: (TOTAL_SEATS[section.id] || 0) - slotCounts.morning,
+            afternoon: (TOTAL_SEATS[section.id] || 0) - slotCounts.afternoon,
+            evening: (TOTAL_SEATS[section.id] || 0) - slotCounts.evening,
+          };
+        } catch {
+          result[section.id] = { morning: '-', afternoon: '-', evening: '-' };
+        }
+      }
+      setAvailableBySection(result);
+    };
+    fetchAll();
+  }, []);
+
   return (
     <div className="floor-layout-container">
       <div className="floor-layout-main">
@@ -64,6 +99,7 @@ const FloorLayout = () => {
               default:
                 break;
             }
+            const available = availableBySection[section.id] || { morning: '-', afternoon: '-', evening: '-' };
             return (
               <div
                 key={section.id}
@@ -78,8 +114,31 @@ const FloorLayout = () => {
                     navigate(`/section/${section.id}`);
                   }
                 }}
+                onMouseEnter={e => setHoveredSection(section.id)}
+                onMouseLeave={e => setHoveredSection(null)}
               >
                 <div className="w-full h-full" />
+                {hoveredSection === section.id && (
+                  <div style={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: '100%',
+                    transform: 'translate(-50%, 10px)',
+                    background: '#fff',
+                    border: '1px solid #2563eb',
+                    borderRadius: 8,
+                    padding: 12,
+                    minWidth: 160,
+                    boxShadow: '0 2px 12px #0002',
+                    zIndex: 1000,
+                    fontSize: 15,
+                  }}>
+                    <div style={{ fontWeight: 600, color: '#2563eb', marginBottom: 4 }}>Available seats:</div>
+                    <div>Morning: {available.morning}</div>
+                    <div>Afternoon: {available.afternoon}</div>
+                    <div>Evening: {available.evening}</div>
+                  </div>
+                )}
               </div>
             );
           })}
