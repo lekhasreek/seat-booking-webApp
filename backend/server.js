@@ -23,6 +23,23 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 // ===============================================
+// GET /api/bookings/user/:userId - Return all bookings for a user
+// ===============================================
+app.get('/api/bookings/user/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from('Bookings')
+      .select('*')
+      .eq('User_id', userId);
+    if (error) {
+      return res.status(500).json({ error: error.message, details: error.details });
+    }
+    res.json({ bookings: data });
+  } catch (err) {
+    res.status(500).json({ error: 'Unexpected error', details: err.message });
+  }
+});
 // GET /api/seats - Return all seats from the 'Seats' table
 // ===============================================
 app.get('/api/seats', async (req, res) => {
