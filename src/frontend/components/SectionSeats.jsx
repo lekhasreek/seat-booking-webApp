@@ -559,7 +559,7 @@ useEffect(() => {
             onDateChange={date => setSelectedDate(date.toISOString().split('T')[0])}
           />
             <h2 className="sectionseats-title">
-              {sectionId ? `Seats in Section ${sectionId}` : "Section"}
+              {sectionId ? `Workspace ${sectionId}` : "Section"}
             </h2>
             <div className="sectionseats-svg-container" ref={svgContainerRef}>
             {/* Debug: Display extracted seat data */}
