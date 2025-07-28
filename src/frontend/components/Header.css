@@ -6,9 +6,9 @@
     align-items: center;
     /* Reduce right padding to move content closer to the right edge */
     padding: 15px 10px; /* Reduced from 100px to 40px (adjust as needed) */
-    background-color: #f7fafd;
+    background-color: #fdfdfd;
     border-bottom: 1px solid #e5e7eb;
-    height: 90px;
+    height: 75px;
     position: fixed;
     top: 0;
     left: 0;

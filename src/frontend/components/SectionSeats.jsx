@@ -41,6 +41,15 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
   // Get the normalized seat label from the overlay ID (e.g., 'Square-A1' -> 'A1')
   const seatLabel = overlay.id.replace(/^Square-/, '');
 
+  // --- New logic for booking status ---
+  const seatBookings = bookedSeatsMap[selectedDate]?.[seatLabel] || {};
+  const timeslots = ['morning', 'afternoon', 'evening'];
+  const bookedCount = timeslots.filter(slot => !!seatBookings[slot]).length;
+  const isFullyBooked = bookedCount === timeslots.length;
+  const isPartiallyBooked = bookedCount > 0 && bookedCount < timeslots.length;
+  const isAvailable = bookedCount === 0;
+  // --- End new logic ---
+
   return (
     <div
       style={{
@@ -49,55 +58,64 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
         top: overlay.top,
         width: overlay.width,
         height: overlay.height,
-        background: isBooked ? '#d1d5db' : isActive ? '#42b0f4' : '#fff',
-        border: '2px solid #000',
+        background: isActive
+          ? '#2563eb' // blue fill for selected
+          : isFullyBooked
+          ? '#d1d5db' // gray fill for fully booked
+          : isPartiallyBooked
+          ? '#fff4e5' // light orange
+          : isAvailable
+          ? '#e6fbe8' // light green
+          : '#fff',
+        border: isActive
+          ? '2.5px solid #2563eb' // blue border for selected
+          : isFullyBooked
+          ? '2.5px solid #888' // gray border for fully booked
+          : isAvailable
+          ? '2.5px solid #22c55e' // green
+          : isPartiallyBooked
+          ? '2.5px solid #f59e42' // orange
+          : '2px solid #888', // fallback gray
+        color: isActive ? '#fff' : '#000',
         borderRadius: 6,
         zIndex: 10,
         pointerEvents: 'all',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: '#000',
         fontWeight: 600,
         fontSize: 16,
-        cursor: isBooked ? 'pointer' : 'pointer',
-        opacity: isBooked ? 0.7 : 1,
-        transition: 'background 0.15s',
+        cursor: isFullyBooked ? 'pointer' : 'pointer',
+        opacity: isFullyBooked ? 0.7 : 1,
+        transition: 'background 0.15s, border 0.15s',
       }}
       onClick={() => {
-        if (!isBooked) {
+        if (!isFullyBooked) {
           setActiveSeat(overlay.id, selectedDate);
           setShowBooking({
             seatId: overlay.id,
-            seatLabel: seatLabel, // Use the normalized label
+            seatLabel: seatLabel,
             date: selectedDate,
           });
         } else {
-          // If already booked, show booking details
           setViewBookingDetails({
             seatId: overlay.id,
-            seatLabel: seatLabel, // Use the normalized label
-            // Pass the timeslot-mapped object for this seat on this date using the normalized label
-            bookingDetailsForSeat: bookedSeatsMap[selectedDate]?.[seatLabel], // Changed: Use seatLabel here
+            seatLabel: seatLabel,
+            bookingDetailsForSeat: seatBookings,
           });
         }
       }}
       onMouseEnter={e => {
-        if (isBooked) {
-          // Changed: Use seatLabel here to get seatBookings
-          const seatBookings = bookedSeatsMap[selectedDate]?.[seatLabel] || {};
-          const bookedByName = Object.values(seatBookings)[0]?.Name || 'N/A'; // Get name from any booked slot
-
+        if (!isAvailable) {
           setHoverBookingDetails({
             seatId: overlay.id,
-            seatLabel: seatLabel, // Use the normalized label
-            // Provide structured details for tooltip
+            seatLabel: seatLabel,
             details: {
-              name: bookedByName, // Name of one of the bookers
-              timeSlotsStatus: ['morning', 'afternoon', 'evening'].map(slot => ({
+              name: Object.values(seatBookings)[0]?.Name || 'N/A',
+              timeSlotsStatus: timeslots.map(slot => ({
                 slot: slot,
-                isBooked: !!seatBookings[slot], // Check if this specific slot is booked
-                bookedBy: seatBookings[slot]?.Name || '', // Who booked this specific slot
+                isBooked: !!seatBookings[slot],
+                bookedBy: seatBookings[slot]?.Name || '',
               })),
             },
             x: e.clientX,
@@ -110,95 +128,9 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
         setHoverBookingDetails(null);
       }}
     >
-      {seatLabel} {/* Display the normalized seat label */}
+      {seatLabel}
     </div>
   );
-  const seats = [];
-  for (const g of seatGroups) {
-    const id = g.getAttribute('id') || '';
-    // Parse transform="translate(x, y)" if present
-    let tx = 0, ty = 0;
-    const transform = g.getAttribute('transform');
-    if (transform) {
-      const match = transform.match(/translate\(([^,\s)]+)[,\s]*([^,\s)]+)?\)/);
-      if (match) {
-        tx = parseFloat(match[1]);
-        ty = match[2] !== undefined ? parseFloat(match[2]) : 0;
-      }
-    }
-    // Try to find a <rect> inside the group
-    const rect = g.querySelector('rect');
-    if (rect) {
-      let x = parseFloat(rect.getAttribute('x') || '0');
-      let y = parseFloat(rect.getAttribute('y') || '0');
-      const width = parseFloat(rect.getAttribute('width') || '0');
-      const height = parseFloat(rect.getAttribute('height') || '0');
-      // Apply group translation
-      x += tx;
-      y += ty;
-      seats.push({ id, name: id, x, y, width, height });
-      continue;
-    }
-    // If no rect, try to parse path bounding box
-    const path = g.querySelector('path');
-    if (path) {
-      const d = path.getAttribute('d') || '';
-      // Parse all M/m, h, v, H, V, L, l commands to get all points
-      let x = 0, y = 0, minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      let tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+/g);
-      if (tokens) {
-        let i = 0;
-        while (i < tokens.length) {
-          let cmd = tokens[i++];
-          if (/[a-zA-Z]/.test(cmd)) {
-            switch (cmd) {
-              case 'M':
-                x = parseFloat(tokens[i++]);
-                y = parseFloat(tokens[i++]);
-                break;
-              case 'm':
-                x += parseFloat(tokens[i++]);
-                y += parseFloat(tokens[i++]);
-                break;
-              case 'h':
-                x += parseFloat(tokens[i++]);
-                break;
-              case 'H':
-                x = parseFloat(tokens[i++]);
-                break;
-              case 'v':
-                y += parseFloat(tokens[i++]);
-                break;
-              case 'V':
-                y = parseFloat(tokens[i++]);
-                break;
-              case 'l':
-                x += parseFloat(tokens[i++]);
-                y += parseFloat(tokens[i++]);
-                break;
-              case 'L':
-                x = parseFloat(tokens[i++]);
-                y = parseFloat(tokens[i++]);
-                break;
-              default:
-                // skip unsupported commands (z, c, q, etc.)
-                break;
-            }
-            minX = Math.min(minX, x);
-            minY = Math.min(minY, y);
-            maxX = Math.max(maxX, x);
-            maxY = Math.max(maxY, y);
-          }
-        }
-        if (isFinite(minX) && isFinite(minY) && isFinite(maxX) && isFinite(maxY)) {
-          // Apply group translation
-          seats.push({ id, name: id, x: minX + tx, y: minY + ty, width: maxX - minX, height: maxY - minY });
-        }
-      }
-    }
-    // Fallback: skip if no rect or path
-  }
-  return seats;
 }
 
 const sectionSVGs = {
