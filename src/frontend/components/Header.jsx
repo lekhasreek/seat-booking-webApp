@@ -11,9 +11,6 @@ const Header = () => {
         <div className="header-container">
             <div className="header-title">Workspace Booking</div>
             <div className="header-right-box">
-                {/* Connection Status Indicator */}
-                <ConnectionStatusIndicator className="mr-4" />
-                
                 {/* Cprime Logo */}
                 <img src={cprimeLogo} alt="Cprime Logo" className="cprime-logo-in-header" />
 
