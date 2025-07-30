@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import Header from "./Header";
 import { useNavigate } from "react-router-dom";
@@ -134,9 +133,31 @@ const FloorLayout = () => {
                     fontSize: 15,
                   }}>
                     <div style={{ fontWeight: 600, color: '#2563eb', marginBottom: 4 }}>Available seats:</div>
-                    <div>Morning: {available.morning}</div>
-                    <div>Afternoon: {available.afternoon}</div>
-                    <div>Evening: {available.evening}</div>
+                    {['morning', 'afternoon', 'evening'].map(slot => {
+                      const count = available[slot];
+                      let dotColor = '#d1d5db'; // Default gray
+                      if (count === 0) {
+                        dotColor = '#000'; // Black
+                      } else if (count > (TOTAL_SEATS[section.id] || 0) / 2) {
+                        dotColor = '#22c55e'; // Green
+                      } else {
+                        dotColor = '#f59e42'; // Orange
+                      }
+                      return (
+                        <div key={slot} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 1 }}>
+                          <span style={{ flex: 1, marginRight: 2 }}>{slot.charAt(0).toUpperCase() + slot.slice(1)}</span>
+                          <span style={{ flex: 1, textAlign: 'center', marginRight: 2 }}>{count}</span>
+                          <div style={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: '50%',
+                            background: dotColor,
+                            border: '1px solid #fff',
+                            boxShadow: '0 1px 4px #0003',
+                          }} />
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
