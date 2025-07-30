@@ -252,7 +252,9 @@ useEffect(() => {
     // Set up aggressive refresh for instant updates (every 2 seconds)
     const refreshInterval = setInterval(() => {
       fetchBooked();
-    }, 2000);
+    }, 2000
+  
+  );
     
     // Also set up focus refresh - when user switches back to tab
     const handleFocus = () => {
@@ -279,7 +281,8 @@ useEffect(() => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }
-}, [sectionId, selectedDate, subscribeToBookings, unsubscribeFromBookings]);
+}, []);
+// [sectionId, selectedDate, subscribeToBookings, unsubscribeFromBookings]
 
   const [seats, setSeats] = useState([]);
 
