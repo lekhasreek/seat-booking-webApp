@@ -56,10 +56,7 @@ const BookingModal = ({
         setError("Check-out time must be after check-in time.");
         return;
       }
-      if (ts.start < "04:00" || ts.end > "22:00") {
-        setError("Bookings allowed only between 4 AM and 10 PM.");
-        return;
-      }
+      // Removed 4AM-10PM restriction
     }
     const formattedTimeslots = timeslots
       .filter(ts => ts.start && ts.end)
@@ -70,44 +67,52 @@ const BookingModal = ({
   };
 
   return (
-    <div className="booking-modal">
-      <div className="booking-modal-title">Book Seat {seatLabel}</div>
+    <div className="booking-modal" style={{
+      maxWidth: 400,
+      margin: '0 auto',
+      background: 'linear-gradient(135deg, #f0f4ff 60%, #e0e7ff 100%)',
+      borderRadius: 14,
+      boxShadow: '0 4px 16px 0 #2563eb18',
+      padding: '32px 28px 24px 28px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      border: '1.5px solid #2563eb33',
+      gap: 0,
+    }}>
+      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 18, letterSpacing: 0.2, color: '#2563eb' }}>Book Seat {seatLabel}</div>
       {error && (
-        <div style={{ color: 'white', background: '#d9534f', padding: '8px', borderRadius: '4px', marginBottom: '10px', textAlign: 'center' }}>
+        <div style={{ color: 'white', background: '#e11d48', padding: '10px 16px', borderRadius: '6px', marginBottom: '18px', textAlign: 'center', fontWeight: 600, fontSize: 16 }}>
           {error}
         </div>
       )}
-      <div className="mb-4">
-        <label className="block mb-1">Date:</label>
-        <div className="booking-modal-date" style={{ padding: '8px', background: '#f3f3f3', borderRadius: '4px', fontWeight: 'bold', textAlign: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 22, width: '100%', justifyContent: 'center' }}>
+        <label style={{ fontWeight: 600, fontSize: 16, color: '#444', marginRight: 8 }}>Date:</label>
+        <div style={{ padding: '8px 18px', background: '#f3f3f3', borderRadius: '6px', fontWeight: 'bold', textAlign: 'center', fontSize: 16, minWidth: 120, color: '#2563eb', letterSpacing: 1 }}>
           {todayDateStr.split('-').reverse().join('-')}
         </div>
       </div>
-      <div className="mb-4">
-        <label className="booking-modal-timeslot-label">Timeslots</label>
+      <div style={{ width: '100%', marginBottom: 18 }}>
+        <label style={{ fontWeight: 600, fontSize: 16, color: '#444', marginBottom: 8, display: 'block' }}>Timeslots</label>
         {timeslots.map((ts, idx) => (
-          <div key={idx} className="flex items-center gap-2 mb-2">
-            <label>Check-in:</label>
+          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, width: '100%' }}>
+            <label style={{ fontWeight: 500, color: '#2563eb', fontSize: 15 }}>Check-in:</label>
             <input
               type="time"
               value={ts.start}
               onChange={e => handleTimeslotChange(idx, "start", e.target.value)}
-              className="border rounded px-2 py-1"
-              min="04:00"
-              max="22:00"
+              style={{ border: '1.5px solid #2563eb', borderRadius: 6, padding: '6px 10px', fontSize: 15, width: 90 }}
             />
-            <label>Check-out:</label>
+            <label style={{ fontWeight: 500, color: '#2563eb', fontSize: 15 }}>Check-out:</label>
             <input
               type="time"
               value={ts.end}
               onChange={e => handleTimeslotChange(idx, "end", e.target.value)}
-              className="border rounded px-2 py-1"
-              min="04:00"
-              max="22:00"
+              style={{ border: '1.5px solid #2563eb', borderRadius: 6, padding: '6px 10px', fontSize: 15, width: 90 }}
             />
             {idx > 0 && (
               <button
-                className="text-red-500 ml-2"
+                style={{ color: '#e11d48', background: 'none', border: 'none', fontSize: 22, marginLeft: 6, cursor: 'pointer', fontWeight: 700 }}
                 onClick={() => handleRemoveTimeslot(idx)}
                 title="Remove timeslot"
                 type="button"
@@ -117,28 +122,30 @@ const BookingModal = ({
             )}
           </div>
         ))}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', marginTop: '2px' }}>
+          <button
+            style={{ background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 18, borderRadius: 8, padding: '4px 18px', border: 'none', cursor: 'pointer', boxShadow: '0 2px 8px #2563eb22' }}
+            onClick={handleAddTimeslot}
+            type="button"
+          >
+            +
+          </button>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 18, width: '100%', justifyContent: 'center', marginTop: 10 }}>
         <button
-          className="bg-blue-500 text-white px-2 py-1 rounded mb-4"
-          onClick={handleAddTimeslot}
-          type="button"
+          onClick={handleBook}
+          style={{ background: '#059669', color: '#fff', fontWeight: 700, fontSize: 17, borderRadius: 8, padding: '10px 32px', border: 'none', cursor: 'pointer', boxShadow: '0 2px 8px #05966922', letterSpacing: 0.5 }}
         >
-          +
+          Book
+        </button>
+        <button
+          onClick={onClose}
+          style={{ background: '#e11d48', color: '#fff', fontWeight: 700, fontSize: 17, borderRadius: 8, padding: '10px 32px', border: 'none', cursor: 'pointer', boxShadow: '0 2px 8px #e11d4822', letterSpacing: 0.5 }}
+        >
+          Cancel
         </button>
       </div>
-      <button
-        onClick={handleBook}
-        className="booking-modal-book-btn"
-        style={{ cursor: 'pointer' }}
-      >
-        Book
-      </button>
-      <button
-        onClick={onClose}
-        className="booking-modal-cancel-btn"
-        style={{ cursor: 'pointer' }}
-      >
-        Cancel
-      </button>
     </div>
   );
 // ...existing code...

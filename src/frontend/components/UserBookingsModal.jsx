@@ -34,7 +34,7 @@ function isPresent(booking) {
   today.setHours(0,0,0,0);
   const d = new Date(dateStr);
   d.setHours(0,0,0,0);
-  return d >= today;
+  return d.getTime() === today.getTime(); // Only today
 }
 
 const UserBookingsModal = ({ isOpen, onClose, bookings }) => {
@@ -174,7 +174,34 @@ const UserBookingsModal = ({ isOpen, onClose, bookings }) => {
                     Date: <span style={{ color: '#111', fontWeight: 500 }}>{getBookingDate(booking) || '-'}</span>
                   </div>
                   <div className="booking-card-row" style={{ fontSize: 15, color: '#444' }}>
-                    Time Slot: <span style={{ color: '#059669', fontWeight: 600, textTransform: 'capitalize' }}>{booking.time_slot || booking.timeSlot || booking.Timeslot || '-'}</span>
+                    Time Slot: <span style={{ color: '#059669', fontWeight: 600, textTransform: 'capitalize' }}>
+                      {(() => {
+                        // Handle Timeslot as stringified JSON or object
+                        let timeslots = [];
+                        if (typeof booking.Timeslot === 'string') {
+                          try {
+                            const parsed = JSON.parse(booking.Timeslot);
+                            if (Array.isArray(parsed.timeslot)) timeslots = parsed.timeslot;
+                          } catch {
+                            timeslots = [booking.Timeslot];
+                          }
+                        } else if (booking.Timeslot?.timeslot) {
+                          timeslots = booking.Timeslot.timeslot;
+                        } else if (booking.time_slot || booking.timeSlot) {
+                          timeslots = [booking.time_slot || booking.timeSlot];
+                        }
+                        if (Array.isArray(timeslots)) {
+                          return timeslots.map((slot, i) => {
+                            if (Array.isArray(slot)) {
+                              return <span key={i}>{slot[0]} - {slot[1]}{i < timeslots.length - 1 ? ', ' : ''}</span>;
+                            } else {
+                              return <span key={i}>{slot}{i < timeslots.length - 1 ? ', ' : ''}</span>;
+                            }
+                          });
+                        }
+                        return '-';
+                      })()}
+                    </span>
                   </div>
                 </div>
               ))}
