@@ -13,11 +13,7 @@
     "vercel-build": "npm run build"
   },
   "dependencies": {
-<<<<<<< HEAD
     "@supabase/supabase-js": "^2.56.0",
-=======
-    "@supabase/supabase-js": "^2.53.0",
->>>>>>> origin/Deployment
     "@types/react-router-dom": "^5.3.3",
     "axios": "^1.10.0",
     "body-parser": "^2.2.0",
