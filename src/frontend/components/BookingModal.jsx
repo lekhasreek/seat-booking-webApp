@@ -1,82 +1,137 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './BookingModal.css';
+
 const BookingModal = ({
   isOpen,
   onClose,
   seatLabel,
-  selectedDate,
-  selectedTimeSlots,
-  onTimeSlotChange,
   onBook,
-  isBookDisabled,
-  isAlreadyBooked,
-  bookedSeatsMap,
-      onEdit,
-      onDelete,
+  preselectedRange,
 }) => {
+  // Set default date to today in yyyy-mm-dd format
+  const todayDateStr = new Date().toISOString().slice(0, 10);
+  const [date] = useState(todayDateStr);
+  const [timeslots, setTimeslots] = useState(() =>
+    preselectedRange && preselectedRange.length === 2
+      ? [{ start: preselectedRange[0], end: preselectedRange[1] }]
+      : [{ start: "", end: "" }]
+  );
+  const [error, setError] = useState("");
+
   if (!isOpen) return null;
+
+  const handleAddTimeslot = () => {
+    setTimeslots([...timeslots, { start: "", end: "" }]);
+  };
+
+  const handleRemoveTimeslot = idx => {
+    setTimeslots(timeslots.filter((_, i) => i !== idx));
+  };
+
+  const handleTimeslotChange = (idx, field, value) => {
+    const newSlots = [...timeslots];
+    newSlots[idx][field] = value;
+    setTimeslots(newSlots);
+  };
+
+  const handleBook = () => {
+    setError("");
+    // Validate date is today
+    const today = new Date();
+    const selected = new Date(date);
+    const isToday = selected.getFullYear() === today.getFullYear() &&
+      selected.getMonth() === today.getMonth() &&
+      selected.getDate() === today.getDate();
+    if (!isToday) {
+      setError("Bookings allowed for today only.");
+      return;
+    }
+    // Validate timeslots
+    for (const ts of timeslots) {
+      if (!ts.start || !ts.end) {
+        setError("Please select both check-in and check-out times.");
+        return;
+      }
+      if (ts.start >= ts.end) {
+        setError("Check-out time must be after check-in time.");
+        return;
+      }
+      if (ts.start < "04:00" || ts.end > "22:00") {
+        setError("Bookings allowed only between 4 AM and 10 PM.");
+        return;
+      }
+    }
+    const formattedTimeslots = timeslots
+      .filter(ts => ts.start && ts.end)
+      .map(ts => [ts.start, ts.end]);
+    const timeslotJSON = { timeslot: formattedTimeslots };
+    onBook({ seatLabel, date, timeslot: timeslotJSON });
+    onClose();
+  };
+
   return (
     <div className="booking-modal">
       <div className="booking-modal-title">Book Seat {seatLabel}</div>
-      <input
-        type="date"
-        value={selectedDate}
-        readOnly
-        className="booking-modal-date"
-      />
-      <div style={{ width: '100%', marginBottom: 12 }}>
-        <label className="booking-modal-timeslot-label">Time Slot</label>
-        <div className="booking-modal-timeslot-list">
-          {['morning', 'afternoon', 'evening'].map(slot => {
-            const isBooked = !!(bookedSeatsMap?.[selectedDate]?.[seatLabel]?.[slot]);
-            return (
-              <label
-                key={slot}
-                className="booking-modal-timeslot"
-                style={{ opacity: isBooked ? 0.5 : 1 }}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedTimeSlots.includes(slot)}
-                  disabled={isBooked}
-                  onChange={e => onTimeSlotChange(slot, e.target.checked, isBooked)}
-                />
-                <span style={{ textTransform: 'capitalize' }}>{slot}</span>
-              </label>
-            );
-          })}
+      {error && (
+        <div style={{ color: 'white', background: '#d9534f', padding: '8px', borderRadius: '4px', marginBottom: '10px', textAlign: 'center' }}>
+          {error}
+        </div>
+      )}
+      <div className="mb-4">
+        <label className="block mb-1">Date:</label>
+        <div className="booking-modal-date" style={{ padding: '8px', background: '#f3f3f3', borderRadius: '4px', fontWeight: 'bold', textAlign: 'center' }}>
+          {todayDateStr.split('-').reverse().join('-')}
         </div>
       </div>
+      <div className="mb-4">
+        <label className="booking-modal-timeslot-label">Timeslots</label>
+        {timeslots.map((ts, idx) => (
+          <div key={idx} className="flex items-center gap-2 mb-2">
+            <label>Check-in:</label>
+            <input
+              type="time"
+              value={ts.start}
+              onChange={e => handleTimeslotChange(idx, "start", e.target.value)}
+              className="border rounded px-2 py-1"
+              min="04:00"
+              max="22:00"
+            />
+            <label>Check-out:</label>
+            <input
+              type="time"
+              value={ts.end}
+              onChange={e => handleTimeslotChange(idx, "end", e.target.value)}
+              className="border rounded px-2 py-1"
+              min="04:00"
+              max="22:00"
+            />
+            {idx > 0 && (
+              <button
+                className="text-red-500 ml-2"
+                onClick={() => handleRemoveTimeslot(idx)}
+                title="Remove timeslot"
+                type="button"
+              >
+                &minus;
+              </button>
+            )}
+          </div>
+        ))}
+        <button
+          className="bg-blue-500 text-white px-2 py-1 rounded mb-4"
+          onClick={handleAddTimeslot}
+          type="button"
+        >
+          +
+        </button>
+      </div>
       <button
-        onClick={onBook}
+        onClick={handleBook}
         className="booking-modal-book-btn"
-        style={{
-          cursor: isBookDisabled ? 'not-allowed' : 'pointer',
-          opacity: isBookDisabled ? 0.6 : 1,
-        }}
-        disabled={isBookDisabled}
+        style={{ cursor: 'pointer' }}
       >
-        {isAlreadyBooked ? 'Already Booked' : 'Book'}
+        Book
       </button>
-          {/* Show Edit/Delete only if seat is already booked */}
-          {isAlreadyBooked && (
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'center' }}>
-              <button
-                onClick={() => typeof onEdit === 'function' && onEdit()}
-                className="booking-modal-edit-btn"
-                style={{ background: '#f0ad4e', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => typeof onDelete === 'function' && onDelete()}
-                className="booking-modal-delete-btn"
-                style={{ background: '#d9534f', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Delete
-              </button>
-            </div>
-          )}
       <button
         onClick={onClose}
         className="booking-modal-cancel-btn"
@@ -86,8 +141,6 @@ const BookingModal = ({
       </button>
     </div>
   );
-};
-
-
-
+// ...existing code...
+}
 export default BookingModal;

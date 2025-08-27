@@ -43,6 +43,10 @@ app.get('/api/seats', async (req, res) => {
   }
 });
 
+// Add missing closing bracket for the main module scope
+
+// Add missing closing bracket for the file
+// This closes the main module scope
 
 // ===============================================
 // GET /api/bookings/date/:date/timeslot/:timeslot - Return bookings for a date and timeslot
@@ -143,9 +147,10 @@ app.get('/api/bookings', async (req, res) => {
 // ===============================================
 // POST /api/bookings - Insert a new booking
 // ===============================================
-app.post('/api/bookings', async (req, res) => {
+app.post('/api/bookings', async (req, res) => 
+  {
   let { created_at, Timeslot, User_id } = req.body;
-  let seatLabel = req.body.Seat_id; 
+  let seatLabel = req.body.Seat_id;
 
   // Validate required fields
   if (!created_at || !seatLabel || !Timeslot || !User_id) {
@@ -169,33 +174,74 @@ app.post('/api/bookings', async (req, res) => {
     console.error('Seat lookup failed:', seatError, seatRows, 'Searched for Seat_id:', seatLabel);
     return res.status(400).json({ error: 'Invalid Seat_id or seat not found', details: seatError, seatLabel });
   }
-  
+
   const Seat_id = seatRows.Seat_id;
   const Seat_Number_db = seatRows.Seat_Number;
 
   // =========================================================================
   // CORE LOGIC: Check for existing booking BEFORE inserting (prevents duplicates)
   // This uses a date range to avoid exact timestamp mismatch issues.
-  // MODIFIED: Changed from .maybeSingle() to .select() and checking data.length
+  // Now supports JSON array timeslots and checks for overlap
   // =========================================================================
   const { data: existingBookings, error: existingBookingError } = await supabase
     .from('Bookings')
-    .select('Booking_id') // Select just the ID to check for existence
+    .select('Booking_id, Timeslot') // Select ID and Timeslot for conflict check
     .eq('Seat_id', Seat_id)
-    .eq('Timeslot', Timeslot)
-    .gte('created_at', `${created_at}T00:00:00.000Z`) // Match start of day
-    .lte('created_at', `${created_at}T23:59:59.999Z`); // Match end of day
+    .gte('created_at', `${created_at}T00:00:00.000Z`)
+    .lte('created_at', `${created_at}T23:59:59.999Z`);
 
   if (existingBookingError) {
     console.error('Error checking for existing booking:', existingBookingError);
     return res.status(500).json({ error: 'Error checking for existing booking', details: existingBookingError.message });
   }
 
-  // Check if any bookings were found for this seat, date, and timeslot
-  if (existingBookings && existingBookings.length > 0) { 
-    console.log(`Booking conflict: Seat ${Seat_Number_db} (${Seat_id}) already booked for ${created_at} at ${Timeslot}`);
-    // Respond with a 409 Conflict status and a specific error message for the frontend
-    return res.status(409).json({ error: 'This seat is already booked for the selected date and timeslot.' });
+  // Check for overlapping timeslots
+  let conflict = false;
+  let requestedTimeslots = [];
+  try {
+    // Accept both stringified and object Timeslot
+    if (typeof Timeslot === 'string') {
+      requestedTimeslots = JSON.parse(Timeslot).timeslot;
+    } else if (typeof Timeslot === 'object' && Timeslot.timeslot) {
+      requestedTimeslots = Timeslot.timeslot;
+    } else {
+      throw new Error('Invalid timeslot format');
+    }
+    if (!Array.isArray(requestedTimeslots)) throw new Error('Invalid timeslot format');
+  } catch (e) {
+    console.error('Invalid Timeslot JSON:', Timeslot, e);
+    return res.status(400).json({ error: 'Invalid Timeslot format. Must be JSON: { timeslot: [["09:00", "14:00"]] }' });
+  }
+
+  for (const booking of existingBookings) {
+    let existingTimeslots = [];
+    try {
+      if (typeof booking.Timeslot === 'string') {
+        existingTimeslots = JSON.parse(booking.Timeslot).timeslot;
+      } else if (typeof booking.Timeslot === 'object' && booking.Timeslot.timeslot) {
+        existingTimeslots = booking.Timeslot.timeslot;
+      }
+      if (!Array.isArray(existingTimeslots)) continue;
+    } catch (e) {
+      continue;
+    }
+    // Check for any overlap
+    for (const [reqStart, reqEnd] of requestedTimeslots) {
+      for (const [existStart, existEnd] of existingTimeslots) {
+        if (
+          (reqStart < existEnd && reqEnd > existStart) // Overlap condition
+        ) {
+          conflict = true;
+          break;
+        }
+      }
+      if (conflict) break;
+    }
+    if (conflict) break;
+  }
+
+  if (conflict) {
+    return res.status(409).json({ error: 'This seat is already booked for one or more of the selected timeslots.' });
   }
   // =========================================================================
 
@@ -215,12 +261,24 @@ app.post('/api/bookings', async (req, res) => {
   const bookedUserName = userRows.Name;
 
   // Insert the new booking into the 'Bookings' table
+  // For Supabase json column, store as native object
+  let timeslotToStore;
+  if (typeof Timeslot === 'string') {
+    try {
+      timeslotToStore = JSON.parse(Timeslot);
+    } catch (e) {
+      timeslotToStore = Timeslot;
+    }
+  } else {
+    timeslotToStore = Timeslot;
+  }
+
   const { data, error } = await supabase.from('Bookings').insert([
     {
       created_at,
       Seat_id,
       Seat_Number: Seat_Number_db,
-      Timeslot,
+      Timeslot: timeslotToStore,
       Name: bookedUserName,
       User_id
     }
@@ -231,40 +289,6 @@ app.post('/api/bookings', async (req, res) => {
     return res.status(500).json({ error: error.message, details: error.details, body: req.body });
   }
   res.status(201).json({ data });
-});
-
-// ===============================================
-// POST /api/users - Upsert a user
-// ===============================================
-app.post('/api/users', async (req, res) => {
-  const { User_id, email, Name } = req.body;
-  
-  if (!User_id || !email || !Name) {
-    return res.status(400).json({ error: 'Missing required fields: User_id, email, Name' });
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('Users')
-      .upsert([{ User_id, email, Name }]);
-
-    if (error) {
-      console.error('Error upserting user:', error);
-      return res.status(500).json({ error: error.message, details: error.details });
-    }
-    
-    res.status(201).json({ data });
-  } catch (err) {
-    console.error('Unexpected error upserting user:', err);
-    res.status(500).json({ error: 'Unexpected server error', details: err.message });
-  }
-});
-
-
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
 
 // ===============================================
 // DELETE /api/bookings/:bookingId - Cancel a booking
@@ -293,6 +317,7 @@ app.delete('/api/bookings/:bookingId', async (req, res) => {
 app.put('/api/bookings/:bookingId', async (req, res) => {
   const { bookingId } = req.params;
   const updateFields = req.body; // { Seat_id, Timeslot, Date, ... }
+
   try {
     const { error } = await supabase
       .from('Bookings')
@@ -307,4 +332,13 @@ app.put('/api/bookings/:bookingId', async (req, res) => {
     console.error('Unexpected error:', err);
     res.status(500).json({ error: 'Unexpected server error', details: err.message });
   }
+}
+              );});
+  
+
+// Start the server after all route handlers
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
 });
+  
