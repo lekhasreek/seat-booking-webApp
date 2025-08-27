@@ -6,6 +6,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Header from "./Header.jsx";
 import { API_ENDPOINTS } from '../config/api.js';
+import { useRealtime } from '../contexts/RealtimeContext.jsx';
 
 import './SectionSeats.css';
 
@@ -40,6 +41,41 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
   // Get the normalized seat label from the overlay ID (e.g., 'Square-A1' -> 'A1')
   const seatLabel = overlay.id.replace(/^Square-/, '');
 
+  // --- New logic for booking status ---
+  // Support both array and object mapping for seatBookings
+  let seatBookingsRaw = bookedSeatsMap[selectedDate]?.[seatLabel];
+  let seatBookings = {};
+  if (Array.isArray(seatBookingsRaw)) {
+    // Convert array of bookings to timeslot mapping
+    seatBookingsRaw.forEach(b => {
+      if (b.Timeslot) {
+        if (typeof b.Timeslot === 'string') {
+          try {
+            const parsed = JSON.parse(b.Timeslot);
+            if (Array.isArray(parsed.timeslot)) {
+              parsed.timeslot.forEach(([start, end]) => {
+                seatBookings[`${start}-${end}`] = b;
+              });
+            }
+          } catch (e) {}
+        } else if (typeof b.Timeslot === 'object' && Array.isArray(b.Timeslot.timeslot)) {
+          b.Timeslot.timeslot.forEach(([start, end]) => {
+            seatBookings[`${start}-${end}`] = b;
+          });
+        }
+      }
+    });
+  } else if (typeof seatBookingsRaw === 'object' && seatBookingsRaw !== null) {
+    seatBookings = seatBookingsRaw;
+  }
+  // For legacy morning/afternoon/evening slots, fallback
+  const timeslots = Object.keys(seatBookings).length > 0 ? Object.keys(seatBookings) : ['morning', 'afternoon', 'evening'];
+  const bookedCount = timeslots.filter(slot => !!seatBookings[slot]).length;
+  const isFullyBooked = bookedCount === timeslots.length;
+  const isPartiallyBooked = bookedCount > 0 && bookedCount < timeslots.length;
+  const isAvailable = bookedCount === 0;
+  // --- End new logic ---
+
   return (
     <div
       style={{
@@ -48,55 +84,64 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
         top: overlay.top,
         width: overlay.width,
         height: overlay.height,
-        background: isBooked ? '#d1d5db' : isActive ? '#42b0f4' : '#fff',
-        border: '2px solid #000',
+        background: isActive
+          ? '#2563eb'
+          : isFullyBooked
+          ? '#d1d5db'
+          : isPartiallyBooked
+          ? '#fff4e5'
+          : isAvailable
+          ? '#e6fbe8'
+          : '#fff',
+        border: isActive
+          ? '2.5px solid #2563eb'
+          : isFullyBooked
+          ? '2.5px solid #888'
+          : isAvailable
+          ? '2.5px solid #22c55e'
+          : isPartiallyBooked
+          ? '2.5px solid #f59e42'
+          : '2px solid #888',
+        color: isActive ? '#fff' : '#000',
         borderRadius: 6,
         zIndex: 10,
         pointerEvents: 'all',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: '#000',
         fontWeight: 600,
         fontSize: 16,
-        cursor: isBooked ? 'pointer' : 'pointer',
-        opacity: isBooked ? 0.7 : 1,
-        transition: 'background 0.15s',
+        cursor: isFullyBooked ? 'pointer' : 'pointer',
+        opacity: isFullyBooked ? 0.7 : 1,
+        transition: 'background 0.15s, border 0.15s',
       }}
       onClick={() => {
-        if (!isBooked) {
+        if (!isFullyBooked) {
           setActiveSeat(overlay.id, selectedDate);
           setShowBooking({
             seatId: overlay.id,
-            seatLabel: seatLabel, // Use the normalized label
+            seatLabel: seatLabel,
             date: selectedDate,
           });
         } else {
-          // If already booked, show booking details
           setViewBookingDetails({
             seatId: overlay.id,
-            seatLabel: seatLabel, // Use the normalized label
-            // Pass the timeslot-mapped object for this seat on this date using the normalized label
-            bookingDetailsForSeat: bookedSeatsMap[selectedDate]?.[seatLabel], // Changed: Use seatLabel here
+            seatLabel: seatLabel,
+            bookingDetailsForSeat: seatBookings,
           });
         }
       }}
       onMouseEnter={e => {
-        if (isBooked) {
-          // Changed: Use seatLabel here to get seatBookings
-          const seatBookings = bookedSeatsMap[selectedDate]?.[seatLabel] || {};
-          const bookedByName = Object.values(seatBookings)[0]?.Name || 'N/A'; // Get name from any booked slot
-
+        if (!isAvailable) {
           setHoverBookingDetails({
             seatId: overlay.id,
-            seatLabel: seatLabel, // Use the normalized label
-            // Provide structured details for tooltip
+            seatLabel: seatLabel,
             details: {
-              name: bookedByName, // Name of one of the bookers
-              timeSlotsStatus: ['morning', 'afternoon', 'evening'].map(slot => ({
+              name: Object.values(seatBookings)[0]?.Name || 'N/A',
+              timeSlotsStatus: timeslots.map(slot => ({
                 slot: slot,
-                isBooked: !!seatBookings[slot], // Check if this specific slot is booked
-                bookedBy: seatBookings[slot]?.Name || '', // Who booked this specific slot
+                isBooked: !!seatBookings[slot],
+                bookedBy: seatBookings[slot]?.Name || '',
               })),
             },
             x: e.clientX,
@@ -109,95 +154,9 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
         setHoverBookingDetails(null);
       }}
     >
-      {seatLabel} {/* Display the normalized seat label */}
+      {seatLabel}
     </div>
   );
-  const seats = [];
-  for (const g of seatGroups) {
-    const id = g.getAttribute('id') || '';
-    // Parse transform="translate(x, y)" if present
-    let tx = 0, ty = 0;
-    const transform = g.getAttribute('transform');
-    if (transform) {
-      const match = transform.match(/translate\(([^,\s)]+)[,\s]*([^,\s)]+)?\)/);
-      if (match) {
-        tx = parseFloat(match[1]);
-        ty = match[2] !== undefined ? parseFloat(match[2]) : 0;
-      }
-    }
-    // Try to find a <rect> inside the group
-    const rect = g.querySelector('rect');
-    if (rect) {
-      let x = parseFloat(rect.getAttribute('x') || '0');
-      let y = parseFloat(rect.getAttribute('y') || '0');
-      const width = parseFloat(rect.getAttribute('width') || '0');
-      const height = parseFloat(rect.getAttribute('height') || '0');
-      // Apply group translation
-      x += tx;
-      y += ty;
-      seats.push({ id, name: id, x, y, width, height });
-      continue;
-    }
-    // If no rect, try to parse path bounding box
-    const path = g.querySelector('path');
-    if (path) {
-      const d = path.getAttribute('d') || '';
-      // Parse all M/m, h, v, H, V, L, l commands to get all points
-      let x = 0, y = 0, minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      let tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+/g);
-      if (tokens) {
-        let i = 0;
-        while (i < tokens.length) {
-          let cmd = tokens[i++];
-          if (/[a-zA-Z]/.test(cmd)) {
-            switch (cmd) {
-              case 'M':
-                x = parseFloat(tokens[i++]);
-                y = parseFloat(tokens[i++]);
-                break;
-              case 'm':
-                x += parseFloat(tokens[i++]);
-                y += parseFloat(tokens[i++]);
-                break;
-              case 'h':
-                x += parseFloat(tokens[i++]);
-                break;
-              case 'H':
-                x = parseFloat(tokens[i++]);
-                break;
-              case 'v':
-                y += parseFloat(tokens[i++]);
-                break;
-              case 'V':
-                y = parseFloat(tokens[i++]);
-                break;
-              case 'l':
-                x += parseFloat(tokens[i++]);
-                y += parseFloat(tokens[i++]);
-                break;
-              case 'L':
-                x = parseFloat(tokens[i++]);
-                y = parseFloat(tokens[i++]);
-                break;
-              default:
-                // skip unsupported commands (z, c, q, etc.)
-                break;
-            }
-            minX = Math.min(minX, x);
-            minY = Math.min(minY, y);
-            maxX = Math.max(maxX, x);
-            maxY = Math.max(maxY, y);
-          }
-        }
-        if (isFinite(minX) && isFinite(minY) && isFinite(maxX) && isFinite(maxY)) {
-          // Apply group translation
-          seats.push({ id, name: id, x: minX + tx, y: minY + ty, width: maxX - minX, height: maxY - minY });
-        }
-      }
-    }
-    // Fallback: skip if no rect or path
-  }
-  return seats;
 }
 
 const sectionSVGs = {
@@ -227,6 +186,12 @@ const SectionSeats = ({ userId }) => {
   // Bookings are now specific to date: { [date]: { [seatLabel]: { [timeslot]: bookingObject } } }
   const [bookedSeatsMap, setBookedSeatsMap] = useState({}); // Renamed state
 
+  // Get real-time context
+  const { subscribeToBookings, unsubscribeFromBookings, bookingsBySection } = useRealtime();
+
+  // Track active subscription
+  const activeSubscriptionRef = useRef(null);
+
   // Fetch booked seats from backend for this section and date
 // Fetch booked seats from backend for this section and date
 async function fetchBooked() {
@@ -248,15 +213,102 @@ async function fetchBooked() {
       ...prev,
       [selectedDate]: { ...newBookedSeatDataForDate }
     }));
-    console.log('Fetched and mapped booked seats:', newBookedSeatDataForDate);
   } catch (err) {
     console.error('Failed to fetch booked seats:', err);
   }
 }
 
 useEffect(() => {
+  // Initial fetch
   fetchBooked();
-}, [sectionId, selectedDate]);
+  
+  // Set up real-time subscription
+  if (sectionId && selectedDate) {
+    console.log(`🔄 Setting up subscription for ${sectionId} on ${selectedDate}`);
+    
+    // Unsubscribe from previous subscription if exists
+    if (activeSubscriptionRef.current) {
+      console.log('🧹 Cleaning up previous subscription');
+      unsubscribeFromBookings(activeSubscriptionRef.current);
+    }
+    
+    // Subscribe to real-time updates
+    const setupSubscription = async () => {
+      const subscriptionKey = await subscribeToBookings(sectionId, selectedDate, (update) => {
+        // Force re-fetch to ensure we have the latest data
+        fetchBooked();
+        
+        // Also update local state immediately for instant UI update
+        setBookedSeatsMap(prev => {
+          const updated = { ...prev };
+          
+          // Ensure section and date exist
+          if (!updated[selectedDate]) updated[selectedDate] = {};
+          
+          const { eventType, seatNumber, booking } = update;
+          
+          if (eventType === 'DELETE') {
+            // Remove the booking
+            if (updated[selectedDate][seatNumber] && booking?.Timeslot) {
+              delete updated[selectedDate][seatNumber][booking.Timeslot];
+              
+              // Clean up empty objects
+              if (Object.keys(updated[selectedDate][seatNumber]).length === 0) {
+                delete updated[selectedDate][seatNumber];
+              }
+            }
+          } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
+            // Add or update the booking
+            if (!updated[selectedDate][seatNumber]) {
+              updated[selectedDate][seatNumber] = {};
+            }
+            updated[selectedDate][seatNumber][booking.Timeslot] = booking;
+          }
+          
+          console.log('📊 Updated booking state:', updated[selectedDate]);
+          return updated;
+        });
+      });
+      
+      activeSubscriptionRef.current = subscriptionKey;
+    };
+    
+    setupSubscription();
+    
+    // Set up aggressive refresh for instant updates (every 2 seconds)
+    const refreshInterval = setInterval(() => {
+      fetchBooked();
+    }, 2000
+  
+  );
+    
+    // Also set up focus refresh - when user switches back to tab
+    const handleFocus = () => {
+      fetchBooked();
+    };
+    
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchBooked();
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Cleanup function
+    return () => {
+      if (activeSubscriptionRef.current) {
+        unsubscribeFromBookings(activeSubscriptionRef.current);
+        activeSubscriptionRef.current = null;
+      }
+      clearInterval(refreshInterval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }
+}, []);
+// [sectionId, selectedDate, subscribeToBookings, unsubscribeFromBookings]
 
   const [seats, setSeats] = useState([]);
 
@@ -272,20 +324,10 @@ useEffect(() => {
 
   // Log screen coordinates for each seat after render (including Square-A* paths)
   useEffect(() => {
-    Object.entries(seatRefs.current).forEach(([id, el]) => {
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        console.log(`Seat ${id} screen coords:`, rect);
-      }
-    });
     // Also log all Square-* paths if present
     const svg = document.querySelector('svg');
     if (svg) {
       const squarePaths = svg.querySelectorAll('path[id^="Square-"]');
-      squarePaths.forEach(path => {
-        const rect = path.getBoundingClientRect();
-        console.log(`Square seat ${path.id} screen coords:`, rect);
-      });
     }
   }, [seats]);
 
@@ -297,7 +339,6 @@ useEffect(() => {
         .then(svgText => {
           setSvgText(svgText); // Save for inline rendering
           const seatBoxes = extractSeatsFromSVG(svgText);
-          console.log('Extracted seats:', seatBoxes);
           setSeats(Array.isArray(seatBoxes) ? seatBoxes.filter(Boolean) : []);
         });
     } else {
@@ -353,6 +394,16 @@ useEffect(() => {
         newBookedSeatDataForDate[booking.Seat_Number][booking.Timeslot] = booking;
       });
       setBookedSeatsMap(prev => ({ ...prev, [date]: newBookedSeatDataForDate })); // Use bookedSeatsMap
+      
+      // Additional aggressive refreshes to ensure instant updates
+      setTimeout(() => {
+        fetchBooked();
+      }, 500);
+      
+      setTimeout(() => {
+        fetchBooked();
+      }, 1500);
+      
       setShowBooking(null);
       setSelectedTimeSlots([]);
       toast.success(
@@ -469,7 +520,7 @@ useEffect(() => {
             onDateChange={date => setSelectedDate(date.toISOString().split('T')[0])}
           />
             <h2 className="sectionseats-title">
-              {sectionId ? `Seats in Section ${sectionId}` : "Section"}
+              {sectionId ? `Workspace ${sectionId}` : "Section"}
             </h2>
             <div className="sectionseats-svg-container" ref={svgContainerRef}>
             {/* Debug: Display extracted seat data */}
@@ -519,23 +570,17 @@ useEffect(() => {
             {/* Booking Form Modal (refactored) */}
             <BookingModal
               isOpen={!!(showBooking && showBooking.seatId && (() => {
-                // Only allow modal for today between 4 AM and 10 PM
+                // Only prevent modal for past days
                 const now = new Date();
                 const todayStr = new Date().toISOString().split('T')[0];
-                const hour = now.getHours();
-                if (selectedDate === todayStr && hour >= 4 && hour < 22) return true;
-                // If yesterday, show toast and prevent modal
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayStr = yesterday.toISOString().split('T')[0];
-                if (selectedDate === yesterdayStr) {
+                if (selectedDate < todayStr) {
                   setShowBooking(null);
                   setActiveSeat(null, '');
                   setSelectedTimeSlots([]);
                   toast.error('Bookings cannot be done on past days');
                   return false;
                 }
-                return false;
+                return true;
               })())}
               onClose={() => {
                 setShowBooking(null);
@@ -627,7 +672,8 @@ useEffect(() => {
                   await deleteBooking(bookingDetails.Booking_id);
                   toast.success('Booking cancelled.');
                   setShowBooking(null);
-                  // Optionally refresh bookings map here
+                  // Immediately refresh booking data
+                  fetchBooked();
                 } catch (err) {
                   toast.error('Failed to cancel booking: ' + err.message);
                 }

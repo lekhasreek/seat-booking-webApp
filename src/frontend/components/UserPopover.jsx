@@ -2,11 +2,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient'; // Corrected path
 import userAvatar from '/user-blue.png';
-import LogoutButton from './LogoutButton'; // Ensure this path is correct relative to UserPopover.jsx
+import LogoutButton from './LogoutButton';
+import UserBookingsModal from './UserBookingsModal';
+import { getBookingsByUser } from '../services/bookingService';
+import { FaCalendarAlt } from 'react-icons/fa';
 
-const UserPopover = () => {
+const UserPopover = ({ onOpenBookingsModal }) => {
     const [showPopover, setShowPopover] = useState(false);
     const [userName, setUserName] = useState('User');
+    // Modal state and bookings logic removed; handled by parent
+    // const [showBookingsModal, setShowBookingsModal] = useState(false);
+    // const [userBookings, setUserBookings] = useState([]);
+    // const [userId, setUserId] = useState(null);
     const popoverRef = useRef(null);
     const avatarRef = useRef(null);
 
@@ -66,6 +73,8 @@ const UserPopover = () => {
         };
     }, []); // Dependency array for useEffect
 
+    // Booking modal logic removed; handled by parent
+
     // Handle click outside to close popover
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -104,9 +113,21 @@ const UserPopover = () => {
                         <img src={userAvatar} alt="User" className="popover-user-avatar-img" />
                     </div>
                     <div className="popover-greeting">Hi, {userName}!</div>
-                    <LogoutButton />
+                    <button
+                        className="user-bookings-btn"
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 8, margin: '12px auto 0 auto', padding: '8px 16px', borderRadius: 6, border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer', fontWeight: 500
+                        }}
+                        onClick={onOpenBookingsModal}
+                    >
+                        <FaCalendarAlt style={{ marginRight: 6 }} /> My Bookings
+                    </button>
+                    <div style={{ marginTop: 12 }}>
+                        <LogoutButton />
+                    </div>
                 </div>
             )}
+            {/* Modal is now managed and rendered by parent (Header) */}
         </>
     );
 };
