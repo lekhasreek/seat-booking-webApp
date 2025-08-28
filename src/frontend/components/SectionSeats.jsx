@@ -517,7 +517,11 @@ useEffect(() => {
           {/* CalendarBar controls the selected date for booking */}
           <CalendarBar
             daysToShow={7}
-            onDateChange={date => setSelectedDate(date.toISOString().split('T')[0])}
+            onDateChange={date => {
+              const dateStr = date.toISOString().split('T')[0];
+              setSelectedDate(dateStr);
+              fetchBooked(dateStr); // Always fetch bookings for selected date
+            }}
           />
             <h2 className="sectionseats-title">
               {sectionId ? `Workspace ${sectionId}` : "Section"}
