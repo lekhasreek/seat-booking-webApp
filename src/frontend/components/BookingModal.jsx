@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import './BookingModal.css';
 
+import { editBooking } from '../services/bookingService.js';
+
 const BookingModal = ({
   isOpen,
   onClose,
   seatLabel,
   onBook,
   preselectedRange,
+  bookingId,
+  isEdit,
+  bookingDetails,
 }) => {
   // Set default date to today in yyyy-mm-dd format
   const todayDateStr = new Date().toISOString().slice(0, 10);
@@ -34,9 +39,8 @@ const BookingModal = ({
     setTimeslots(newSlots);
   };
 
-  const handleBook = () => {
+  const handleBook = async () => {
     setError("");
-    // Validate date is today
     const today = new Date();
     const selected = new Date(date);
     const isToday = selected.getFullYear() === today.getFullYear() &&
@@ -46,7 +50,6 @@ const BookingModal = ({
       setError("Bookings allowed for today only.");
       return;
     }
-    // Validate timeslots
     for (const ts of timeslots) {
       if (!ts.start || !ts.end) {
         setError("Please select both check-in and check-out times.");
@@ -56,14 +59,25 @@ const BookingModal = ({
         setError("Check-out time must be after check-in time.");
         return;
       }
-      // Removed 4AM-10PM restriction
     }
     const formattedTimeslots = timeslots
       .filter(ts => ts.start && ts.end)
       .map(ts => [ts.start, ts.end]);
     const timeslotJSON = { timeslot: formattedTimeslots };
-    onBook({ seatLabel, date, timeslot: timeslotJSON });
-    onClose();
+    if (isEdit && bookingId) {
+      // Edit booking
+      try {
+        await editBooking(bookingId, {
+          Timeslot: timeslotJSON,
+        });
+        onClose();
+      } catch (err) {
+        setError('Failed to edit booking: ' + err.message);
+      }
+    } else {
+      onBook({ seatLabel, date, timeslot: timeslotJSON });
+      onClose();
+    }
   };
 
   return (
@@ -135,9 +149,9 @@ const BookingModal = ({
       <div style={{ display: 'flex', gap: 18, width: '100%', justifyContent: 'center', marginTop: 10 }}>
         <button
           onClick={handleBook}
-          style={{ background: '#059669', color: '#fff', fontWeight: 700, fontSize: 17, borderRadius: 8, padding: '10px 32px', border: 'none', cursor: 'pointer', boxShadow: '0 2px 8px #05966922', letterSpacing: 0.5 }}
+          style={{ background: isEdit ? '#2563eb' : '#059669', color: '#fff', fontWeight: 700, fontSize: 17, borderRadius: 8, padding: '10px 32px', border: 'none', cursor: 'pointer', boxShadow: '0 2px 8px #05966922', letterSpacing: 0.5 }}
         >
-          Book
+          {isEdit ? 'Update' : 'Book'}
         </button>
         <button
           onClick={onClose}
