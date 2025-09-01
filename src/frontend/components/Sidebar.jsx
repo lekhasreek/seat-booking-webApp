@@ -14,9 +14,21 @@ const SECTIONS = [
   { id: 'G', label: 'Section G' },
 ];
 
-const Sidebar = ({ currentSection, onSectionSelect, isOpen, onClose }) => {
+const Sidebar = ({ currentSection, onSectionSelect, isOpen: controlledOpen, onClose }) => {
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
+  // Allow controlled or uncontrolled usage
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = typeof controlledOpen === 'boolean';
+  const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
+  const toggleOpen = () => {
+    if (isControlled) {
+      // If controlled, call onClose as a toggle fallback
+      onClose && onClose();
+    } else {
+      setUncontrolledOpen(v => !v);
+    }
+  };
 
   // Responsive: track window width
   const [isMobile, setIsMobile] = useState(false);
@@ -32,78 +44,54 @@ const Sidebar = ({ currentSection, onSectionSelect, isOpen, onClose }) => {
     if (!isOpen || !isMobile) return;
     const handleClickOutside = (event) => {
       if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
-        onClose();
+        if (isControlled) {
+          onClose && onClose();
+        } else {
+          setUncontrolledOpen(false);
+        }
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen, isMobile, onClose]);
+  }, [isOpen, isMobile, isControlled, onClose]);
 
   return (
     <>
-      {(!isOpen || isMobile) && (
-        <button className="sidebar-burger" onClick={onClose} aria-label="Open sidebar">
-          <img src={MenuBurgerIcon} alt="Menu" className="sidebar-burger-icon" />
-        </button>
-      )}
+      <button className="sidebar-burger" onClick={toggleOpen} aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}>
+        <img src={MenuBurgerIcon} alt="Menu" className="sidebar-burger-icon" />
+      </button>
       <aside
-        className="sidebar-container"
+        className={`sidebar-container ${isOpen ? 'open' : ''}`}
         ref={sidebarRef}
-        style={{
-          display: isOpen ? 'block' : 'none',
-          ...(isMobile
-            ? {
-                position: 'fixed',
-                left: 0,
-                top: 0,
-                height: '100vh',
-                zIndex: 3001,
-                background: '#fff',
-                boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18)',
-                width: '90vw',
-                maxWidth: 420,
-                minWidth: 220,
-                transition: 'transform 0.2s cubic-bezier(.4,0,.2,1)',
-              }
-            : { boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18)' })
-        }}
       >
-        <div className="sidebar-header" style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 0}}>
+        <div className="sidebar-header sidebar-header-row">
           <div className="sidebar-header-title">Workplace Booking</div>
-          <button className="sidebar-close-btn" onClick={onClose} aria-label="Close sidebar">&times;</button>
+          <button className="sidebar-close-btn" onClick={toggleOpen} aria-label="Close sidebar">&times;</button>
         </div>
         <ul className="sidebar-section-list">
           {SECTIONS.map(section => (
             <li
               key={section.id}
               className={`sidebar-section-item${currentSection === section.id ? ' selected' : ''}`}
-              onClick={() => onSectionSelect(section.id)}
+              onClick={() => {
+                onSectionSelect ? onSectionSelect(section.id) : navigate(`/section/${section.id}`);
+                if (isMobile) toggleOpen();
+              }}
               tabIndex={0}
-              onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onSectionSelect(section.id)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  onSectionSelect ? onSectionSelect(section.id) : navigate(`/section/${section.id}`);
+                  if (isMobile) toggleOpen();
+                }
+              }}
             >
               {section.label}
             </li>
           ))}
         </ul>
         {/* Map view link at the bottom */}
-        <div
-          className="sidebar-map-link"
-          onClick={() => navigate('/')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            cursor: 'pointer',
-            padding: '18px 24px 12px 24px',
-            fontWeight: 600,
-            color: '#2563eb',
-            fontSize: 17,
-            borderTop: '1px solid #e5e7eb',
-            marginTop: 'auto',
-            userSelect: 'none',
-          }}
-        >
-          <span style={{ fontSize: 22, display: 'flex', alignItems: 'center' }}>{'<-'}</span>
+        <div className="sidebar-map-link" onClick={() => { navigate('/'); if (isMobile) toggleOpen(); }}>
+          <span className="sidebar-map-arrow">&larr;</span>
           <span>Map view</span>
         </div>
       </aside>

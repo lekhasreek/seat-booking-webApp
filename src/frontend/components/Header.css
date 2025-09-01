@@ -23,6 +23,8 @@
     font-weight: 700;
     color: #2c3e50;
     letter-spacing: -0.5px;
+    /* Leave space for the burger button on the left */
+    margin-left: 56px;
 }
 
 .header-right-box {

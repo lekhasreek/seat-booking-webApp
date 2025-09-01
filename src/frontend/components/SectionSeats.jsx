@@ -15,6 +15,7 @@ import Popover from "./Popover.jsx";
 import TimeFilter from "./TimeFilter.jsx";
 
 import CalendarBar from "./CalendarBar.jsx";
+import Sidebar from "./Sidebar.jsx";
 import SectionA from '../../assets/Section-A.svg';
 import SectionB from '../../assets/Section-B.svg';
 import SectionC from '../../assets/Section-C.svg';
@@ -597,6 +598,8 @@ useEffect(() => {
   return (
     <SeatOverlayContext.Provider value={{ activeSeat, selectedDateForActive, setActiveSeat }}>
       <div className="sectionseats-bg">
+  {/* Sidebar shown only on section view; burger toggles the menu */}
+  <Sidebar currentSection={sectionId} />
         {/* Main Content Area */}
         <div className="sectionseats-main">
           {/* Fixed Header */}
