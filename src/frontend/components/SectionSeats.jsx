@@ -753,24 +753,27 @@ useEffect(() => {
                       User_id: userId,
                     });
                     toast.success('Seat booked successfully');
-                    // Update cache locally without re-fetch
+                    // Update cache locally using object mapping for instant UI update
                     setBookedSeatsMap(prev => {
                       const updated = { ...prev };
                       if (!updated[selectedDate]) updated[selectedDate] = {};
-                      const arr = updated[selectedDate][currentSeatLabel] || [];
-                      // Store a synthetic booking item (server realtime will reconcile with Booking_id later)
-                      arr.push({
-                        created_at: selectedDate,
-                        Seat_id: seatUUID,
-                        Seat_Number: currentSeatLabel,
-                        Timeslot: JSON.stringify({ timeslot: bookingData.timeslot.timeslot }),
-                        User_id: userId,
-                        Name: ''
+                      if (!updated[selectedDate][currentSeatLabel] || Array.isArray(updated[selectedDate][currentSeatLabel])) {
+                        updated[selectedDate][currentSeatLabel] = {};
+                      }
+                      bookingData.timeslot.timeslot.forEach(([start, end]) => {
+                        updated[selectedDate][currentSeatLabel][`${start}-${end}`] = {
+                          created_at: selectedDate,
+                          Seat_id: seatUUID,
+                          Seat_Number: currentSeatLabel,
+                          Timeslot: JSON.stringify({ timeslot: [[start, end]] }),
+                          User_id: userId,
+                          Name: (typeof user !== 'undefined' && user?.name) ? user.name : ''
+                        };
                       });
-                      updated[selectedDate][currentSeatLabel] = arr;
                       return updated;
                     });
                     setShowBooking(null);
+                    setViewBookingDetails(null); // Force modal to re-render after booking
                   } else {
                     toast.error('Bookings should be made for today only and timeslot must be valid.');
                   }
