@@ -1,0 +1,10 @@
+.timefilter-card{display:flex;flex-direction:column;gap:10px;margin:8px 0 16px 0;background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px}
+.timefilter-row{display:flex;gap:28px;align-items:center;flex-wrap:wrap}
+.timefilter-group{display:flex;gap:10px;align-items:center}
+.timefilter-label{font-weight:700;color:#111827}
+.timefilter-input{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px;min-width:110px}
+.timefilter-micro{padding:6px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#f8fafc;color:#111827;font-weight:600}
+.timefilter-actions{display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap}
+.timefilter-primary{padding:8px 12px;border-radius:10px;border:1px solid #2563eb;background:#2563eb;color:#fff;font-weight:700;box-shadow:0 2px 8px #2563eb22}
+.timefilter-primary.is-disabled{opacity:.6;cursor:not-allowed}
+.timefilter-outline{padding:8px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#111827;font-weight:600}

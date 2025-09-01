@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './BookingModal.css';
 
 const BookingModal = ({
@@ -17,6 +17,16 @@ const BookingModal = ({
       : [{ start: "", end: "" }]
   );
   const [error, setError] = useState("");
+
+  // Reinitialize times when the modal opens or when preselectedRange changes
+  useEffect(() => {
+    if (!isOpen) return;
+    if (preselectedRange && preselectedRange.length === 2) {
+      setTimeslots([{ start: preselectedRange[0], end: preselectedRange[1] }]);
+    } else {
+      setTimeslots([{ start: "", end: "" }]);
+    }
+  }, [isOpen, preselectedRange]);
 
   if (!isOpen) return null;
 

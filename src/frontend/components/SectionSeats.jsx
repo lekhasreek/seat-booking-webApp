@@ -12,6 +12,7 @@ import './SectionSeats.css';
 
 import BookingModal from "./BookingModal.jsx";
 import Popover from "./Popover.jsx";
+import TimeFilter from "./TimeFilter.jsx";
 
 import CalendarBar from "./CalendarBar.jsx";
 import SectionA from '../../assets/Section-A.svg';
@@ -32,7 +33,7 @@ const SeatOverlayContext = React.createContext({
 
 
 // Overlay for a single seat, with hover state for booked seats
-function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHoverBookingDetails = () => {}, setViewBookingDetails, bookedSeatsMap }) { // Added setViewBookingDetails, bookedSeatsMap
+function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHoverBookingDetails = () => {}, setViewBookingDetails, bookedSeatsMap, selectedRange }) { // Added selectedRange for time filter
   // Use lifted state for blue highlight
   const { activeSeat, selectedDateForActive, setActiveSeat } = React.useContext(SeatOverlayContext);
   // Correct the date comparison for isActive
@@ -41,40 +42,102 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
   // Get the normalized seat label from the overlay ID (e.g., 'Square-A1' -> 'A1')
   const seatLabel = overlay.id.replace(/^Square-/, '');
 
-  // --- New logic for booking status ---
-  // Support both array and object mapping for seatBookings
-  let seatBookingsRaw = bookedSeatsMap[selectedDate]?.[seatLabel];
-  let seatBookings = {};
+  // --- Availability logic (supports time-range filter) ---
+  // Gather all booked time ranges for this seat on the selected date
+  const seatBookingsRaw = bookedSeatsMap[selectedDate]?.[seatLabel];
+  const allBookedRanges = [];
   if (Array.isArray(seatBookingsRaw)) {
-    // Convert array of bookings to timeslot mapping
     seatBookingsRaw.forEach(b => {
-      if (b.Timeslot) {
-        if (typeof b.Timeslot === 'string') {
-          try {
-            const parsed = JSON.parse(b.Timeslot);
-            if (Array.isArray(parsed.timeslot)) {
-              parsed.timeslot.forEach(([start, end]) => {
-                seatBookings[`${start}-${end}`] = b;
-              });
-            }
-          } catch (e) {}
-        } else if (typeof b.Timeslot === 'object' && Array.isArray(b.Timeslot.timeslot)) {
-          b.Timeslot.timeslot.forEach(([start, end]) => {
-            seatBookings[`${start}-${end}`] = b;
-          });
-        }
+      if (!b?.Timeslot) return;
+      if (typeof b.Timeslot === 'string') {
+        try {
+          const parsed = JSON.parse(b.Timeslot);
+          if (Array.isArray(parsed?.timeslot)) {
+            parsed.timeslot.forEach(([s, e]) => allBookedRanges.push([s, e]));
+          }
+        } catch (_) {}
+      } else if (typeof b.Timeslot === 'object' && Array.isArray(b.Timeslot.timeslot)) {
+        b.Timeslot.timeslot.forEach(([s, e]) => allBookedRanges.push([s, e]));
       }
     });
-  } else if (typeof seatBookingsRaw === 'object' && seatBookingsRaw !== null) {
-    seatBookings = seatBookingsRaw;
+  } else if (seatBookingsRaw && typeof seatBookingsRaw === 'object') {
+    Object.keys(seatBookingsRaw).forEach(k => {
+      const v = seatBookingsRaw[k];
+      if (!v?.Timeslot) return;
+      if (typeof v.Timeslot === 'string') {
+        try {
+          const parsed = JSON.parse(v.Timeslot);
+          if (Array.isArray(parsed?.timeslot)) {
+            parsed.timeslot.forEach(([s, e]) => allBookedRanges.push([s, e]));
+          }
+        } catch (_) {}
+      } else if (typeof v.Timeslot === 'object' && Array.isArray(v.Timeslot.timeslot)) {
+        v.Timeslot.timeslot.forEach(([s, e]) => allBookedRanges.push([s, e]));
+      }
+    });
   }
-  // For legacy morning/afternoon/evening slots, fallback
-  const timeslots = Object.keys(seatBookings).length > 0 ? Object.keys(seatBookings) : ['morning', 'afternoon', 'evening'];
-  const bookedCount = timeslots.filter(slot => !!seatBookings[slot]).length;
-  const isFullyBooked = bookedCount === timeslots.length;
-  const isPartiallyBooked = bookedCount > 0 && bookedCount < timeslots.length;
-  const isAvailable = bookedCount === 0;
-  // --- End new logic ---
+
+  // Helper: convert HH:MM to minutes from midnight
+  const toMin = (hhmm) => {
+    if (!hhmm || typeof hhmm !== 'string') return null;
+    const [h, m] = hhmm.split(':').map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    return h * 60 + m;
+  };
+
+  // Determine availability flags
+  let isFullyBooked = false;
+  let isPartiallyBooked = false;
+  let isAvailable = true;
+
+  if (selectedRange?.checkIn && selectedRange?.checkOut) {
+    const qStart = toMin(selectedRange.checkIn);
+    const qEnd = toMin(selectedRange.checkOut);
+    if (qStart != null && qEnd != null && qEnd > qStart) {
+      // Compute total coverage of overlaps between bookings and query range
+      let covered = 0;
+      const segments = [];
+      allBookedRanges.forEach(([s, e]) => {
+        const bs = toMin(s);
+        const be = toMin(e);
+        if (bs == null || be == null) return;
+        const ovlStart = Math.max(qStart, bs);
+        const ovlEnd = Math.min(qEnd, be);
+        if (ovlEnd > ovlStart) segments.push([ovlStart, ovlEnd]);
+      });
+      // Merge overlapping segments
+      segments.sort((a, b) => a[0] - b[0]);
+      let cur = null;
+      const merged = [];
+      for (const seg of segments) {
+        if (!cur || seg[0] > cur[1]) {
+          if (cur) merged.push(cur);
+          cur = [...seg];
+        } else {
+          cur[1] = Math.max(cur[1], seg[1]);
+        }
+      }
+      if (cur) merged.push(cur);
+      covered = merged.reduce((sum, [s, e]) => sum + (e - s), 0);
+      const requested = qEnd - qStart;
+      if (covered >= requested && requested > 0) {
+        isFullyBooked = true;
+        isAvailable = false;
+      } else if (covered > 0) {
+        isPartiallyBooked = true;
+        isAvailable = false;
+      } else {
+        isAvailable = true;
+      }
+    }
+  } else {
+    // Fallback to existing logic (no filter): booked if any booking exists
+    const hasAnyBooking = allBookedRanges.length > 0;
+    isFullyBooked = hasAnyBooking;
+    isAvailable = !hasAnyBooking;
+    isPartiallyBooked = false;
+  }
+  // --- End availability logic ---
 
   return (
     <div
@@ -118,16 +181,20 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
       onClick={() => {
         if (!isFullyBooked) {
           setActiveSeat(overlay.id, selectedDate);
+          // If a time filter is applied, prefill the modal with that range
+          const hasAppliedRange = selectedRange?.checkIn && selectedRange?.checkOut;
+          const preRange = hasAppliedRange ? [selectedRange.checkIn, selectedRange.checkOut] : undefined;
           setShowBooking({
             seatId: overlay.id,
             seatLabel: seatLabel,
             date: selectedDate,
+            ...(hasAppliedRange ? { preselectedRange: preRange } : {}),
           });
         } else {
           setViewBookingDetails({
             seatId: overlay.id,
             seatLabel: seatLabel,
-            bookingDetailsForSeat: seatBookings,
+            bookingDetailsForSeat: bookedSeatsMap[selectedDate]?.[seatLabel],
           });
         }
       }}
@@ -137,12 +204,18 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
             seatId: overlay.id,
             seatLabel: seatLabel,
             details: {
-              name: Object.values(seatBookings)[0]?.Name || 'N/A',
-              timeSlotsStatus: timeslots.map(slot => ({
-                slot: slot,
-                isBooked: !!seatBookings[slot],
-                bookedBy: seatBookings[slot]?.Name || '',
-              })),
+              name: (Array.isArray(seatBookingsRaw) ? seatBookingsRaw[0]?.Name : Object.values(seatBookingsRaw || {})[0]?.Name) || 'N/A',
+              timeSlotsStatus: (Array.isArray(seatBookingsRaw)
+                ? seatBookingsRaw.flatMap(b => {
+                    try {
+                      const parsed = typeof b.Timeslot === 'string' ? JSON.parse(b.Timeslot) : b.Timeslot;
+                      return Array.isArray(parsed?.timeslot)
+                        ? parsed.timeslot.map(([s, e]) => ({ slot: `${s}-${e}`, isBooked: true, bookedBy: b.Name || '' }))
+                        : [];
+                    } catch { return []; }
+                  })
+                : Object.keys(seatBookingsRaw || {}).map(k => ({ slot: k, isBooked: true, bookedBy: seatBookingsRaw[k]?.Name || '' }))
+              ),
             },
             x: e.clientX,
             y: e.clientY,
@@ -235,66 +308,47 @@ useEffect(() => {
     // Subscribe to real-time updates
     const setupSubscription = async () => {
       const subscriptionKey = await subscribeToBookings(sectionId, selectedDate, (update) => {
-        // Force re-fetch to ensure we have the latest data
-        fetchBooked();
-        
-        // Also update local state immediately for instant UI update
+        const { eventType, seatNumber, booking } = update;
+
         setBookedSeatsMap(prev => {
           const updated = { ...prev };
-          
-          // Ensure section and date exist
           if (!updated[selectedDate]) updated[selectedDate] = {};
-          
-          const { eventType, seatNumber, booking } = update;
-          
+          const seatLabel = seatNumber;
+          // Ensure seat entry as array cache
+          if (!Array.isArray(updated[selectedDate][seatLabel])) {
+            // normalize existing object map to array
+            if (updated[selectedDate][seatLabel] && typeof updated[selectedDate][seatLabel] === 'object' && !Array.isArray(updated[selectedDate][seatLabel])) {
+              updated[selectedDate][seatLabel] = Object.values(updated[selectedDate][seatLabel]);
+            } else if (!updated[selectedDate][seatLabel]) {
+              updated[selectedDate][seatLabel] = [];
+            }
+          }
+
           if (eventType === 'DELETE') {
-            // Remove the booking
-            if (updated[selectedDate][seatNumber] && booking?.Timeslot) {
-              delete updated[selectedDate][seatNumber][booking.Timeslot];
-              
-              // Clean up empty objects
-              if (Object.keys(updated[selectedDate][seatNumber]).length === 0) {
-                delete updated[selectedDate][seatNumber];
-              }
+            if (booking?.Booking_id) {
+              updated[selectedDate][seatLabel] = (updated[selectedDate][seatLabel] || []).filter(b => b.Booking_id !== booking.Booking_id);
+              if (updated[selectedDate][seatLabel].length === 0) delete updated[selectedDate][seatLabel];
             }
           } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
-            // Add or update the booking
-            if (!updated[selectedDate][seatNumber]) {
-              updated[selectedDate][seatNumber] = {};
+            // Replace existing by Booking_id or push
+            if (booking?.Booking_id) {
+              const arr = updated[selectedDate][seatLabel] || [];
+              const idx = arr.findIndex(b => b.Booking_id === booking.Booking_id);
+              if (idx >= 0) {
+                arr[idx] = booking;
+              } else {
+                arr.push(booking);
+              }
+              updated[selectedDate][seatLabel] = arr;
             }
-            updated[selectedDate][seatNumber][booking.Timeslot] = booking;
           }
-          
-          console.log('📊 Updated booking state:', updated[selectedDate]);
           return updated;
         });
       });
-      
       activeSubscriptionRef.current = subscriptionKey;
     };
     
     setupSubscription();
-    
-    // Set up aggressive refresh for instant updates (every 2 seconds)
-    const refreshInterval = setInterval(() => {
-      fetchBooked();
-    }, 2000
-  
-  );
-    
-    // Also set up focus refresh - when user switches back to tab
-    const handleFocus = () => {
-      fetchBooked();
-    };
-    
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        fetchBooked();
-      }
-    };
-    
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     // Cleanup function
     return () => {
@@ -302,9 +356,6 @@ useEffect(() => {
         unsubscribeFromBookings(activeSubscriptionRef.current);
         activeSubscriptionRef.current = null;
       }
-      clearInterval(refreshInterval);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }
 }, []);
@@ -338,8 +389,8 @@ useEffect(() => {
         .then(res => res.text())
         .then(svgText => {
           setSvgText(svgText); // Save for inline rendering
-          const seatBoxes = extractSeatsFromSVG(svgText);
-          setSeats(Array.isArray(seatBoxes) ? seatBoxes.filter(Boolean) : []);
+          // Removed call to extractSeatsFromSVG (not defined) to prevent runtime error
+          // setSeats(...) is not needed for overlays; overlays are computed from DOM paths
         });
     } else {
       setSeats([]);
@@ -353,6 +404,47 @@ useEffect(() => {
 
   // Add this state for time slots
   const [selectedTimeSlots, setSelectedTimeSlots] = useState([]);
+  // Applied time filter (explicitly set by user clicking "Check availability")
+  const [appliedRange, setAppliedRange] = useState({ checkIn: '', checkOut: '' });
+  // Time filter state (HH:MM 24h)
+  const [selectedRange, setSelectedRange] = useState({ checkIn: '', checkOut: '' });
+  // Helper to format time like 02:00 -> 2, 14:30 -> 14:30
+  const formatCompactTime = (hhmm) => {
+    if (!hhmm) return '';
+    const [hStr, mStr] = hhmm.split(':');
+    const h = parseInt(hStr, 10);
+    const m = parseInt(mStr, 10);
+    if (Number.isNaN(h) || Number.isNaN(m)) return hhmm;
+    if (m === 0) return String(h);
+    return `${h}:${mStr.padStart(2, '0')}`;
+  };
+  const setPresetRange = (type) => {
+    // Quick presets
+    if (type === 'checkin') {
+      // Use now rounded to next 15 min as default check-in
+      const d = new Date();
+      const m = d.getMinutes();
+      const rounded = m % 15 === 0 ? m : m + (15 - (m % 15));
+      if (rounded >= 60) { d.setHours(d.getHours() + 1); d.setMinutes(0); } else { d.setMinutes(rounded); }
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      setSelectedRange(r => ({ ...r, checkIn: `${hh}:${mm}` }));
+    } else if (type === 'checkout') {
+      // Default +2h from check-in or 18:00
+      if (selectedRange.checkIn) {
+        const [h, m] = selectedRange.checkIn.split(':').map(Number);
+        let mins = h * 60 + m + 120;
+        mins = Math.min(mins, 23 * 60 + 59);
+        const hh = String(Math.floor(mins / 60)).padStart(2, '0');
+        const mm = String(mins % 60).padStart(2, '0');
+        setSelectedRange(r => ({ ...r, checkOut: `${hh}:${mm}` }));
+      } else {
+        setSelectedRange(r => ({ ...r, checkOut: '18:00' }));
+      }
+    } else if (type === 'clear') {
+      setSelectedRange({ checkIn: '', checkOut: '' });
+    }
+  };
 
   // Async booking handler: insert into backend Bookings API
   const handleBook = async (seatId, date) => {
@@ -520,9 +612,30 @@ useEffect(() => {
             onDateChange={date => {
               const dateStr = date.toISOString().split('T')[0];
               setSelectedDate(dateStr);
-              fetchBooked(dateStr); // Always fetch bookings for selected date
+              // Use cached realtime bookings; avoid refetch to save egress
             }}
           />
+            <TimeFilter
+              selectedRange={selectedRange}
+              onRangeChange={(r) => setSelectedRange(r)}
+              onApply={() => setAppliedRange(selectedRange)}
+              onClear={() => { setSelectedRange({ checkIn: '', checkOut: '' }); setAppliedRange({ checkIn: '', checkOut: '' }); }}
+            />
+    {appliedRange.checkIn && appliedRange.checkOut && appliedRange.checkOut > appliedRange.checkIn && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4, marginBottom: 8 }}>
+                <div style={{
+                  background: '#ecfdf5',
+                  color: '#065f46',
+                  border: '1px solid #a7f3d0',
+                  borderRadius: 9999,
+                  padding: '6px 12px',
+                  fontWeight: 600,
+                  fontSize: 13,
+                }}>
+      Showing filtered availability: {formatCompactTime(appliedRange.checkIn)} – {formatCompactTime(appliedRange.checkOut)}
+                </div>
+              </div>
+            )}
             <h2 className="sectionseats-title">
               {sectionId ? `Workspace ${sectionId}` : "Section"}
             </h2>
@@ -564,6 +677,7 @@ useEffect(() => {
                 setHoverBookingDetails={setHoverBookingDetails}
                 setViewBookingDetails={setViewBookingDetails} // Pass down
                 bookedSeatsMap={bookedSeatsMap} // Pass down
+                selectedRange={appliedRange}
               />
             ))}
 
@@ -636,16 +750,23 @@ useEffect(() => {
                       User_id: userId,
                     });
                     toast.success('Seat booked successfully');
-                    // Refetch booked seats after booking and update with array mapping
-                    const { bookings: updatedBookings } = await getBookedSeatsBySectionAndDate(sectionId, selectedDate);
-                    const newBookedSeatDataForDate = {};
-                    updatedBookings.forEach(booking => {
-                      if (!newBookedSeatDataForDate[booking.Seat_Number]) {
-                        newBookedSeatDataForDate[booking.Seat_Number] = [];
-                      }
-                      newBookedSeatDataForDate[booking.Seat_Number].push(booking);
+                    // Update cache locally without re-fetch
+                    setBookedSeatsMap(prev => {
+                      const updated = { ...prev };
+                      if (!updated[selectedDate]) updated[selectedDate] = {};
+                      const arr = updated[selectedDate][currentSeatLabel] || [];
+                      // Store a synthetic booking item (server realtime will reconcile with Booking_id later)
+                      arr.push({
+                        created_at: selectedDate,
+                        Seat_id: seatUUID,
+                        Seat_Number: currentSeatLabel,
+                        Timeslot: JSON.stringify({ timeslot: bookingData.timeslot.timeslot }),
+                        User_id: userId,
+                        Name: ''
+                      });
+                      updated[selectedDate][currentSeatLabel] = arr;
+                      return updated;
                     });
-                    setBookedSeatsMap(prev => ({ ...prev, [selectedDate]: newBookedSeatDataForDate }));
                     setShowBooking(null);
                   } else {
                     toast.error('Bookings should be made for today only and timeslot must be valid.');
@@ -676,8 +797,14 @@ useEffect(() => {
                   await deleteBooking(bookingDetails.Booking_id);
                   toast.success('Booking cancelled.');
                   setShowBooking(null);
-                  // Immediately refresh booking data
-                  fetchBooked();
+                  // Update local cache; realtime will reconcile
+                  setBookedSeatsMap(prev => {
+                    const updated = { ...prev };
+                    const arr = (updated[selectedDate]?.[seatLabel] || []).filter(b => b.Booking_id !== bookingDetails.Booking_id);
+                    if (!updated[selectedDate]) updated[selectedDate] = {};
+                    if (arr.length > 0) updated[selectedDate][seatLabel] = arr; else delete updated[selectedDate][seatLabel];
+                    return updated;
+                  });
                 } catch (err) {
                   toast.error('Failed to cancel booking: ' + err.message);
                 }
