@@ -527,7 +527,8 @@ useEffect(() => {
             onDateChange={date => {
               const dateStr = date.toISOString().split('T')[0];
               setSelectedDate(dateStr);
-              // Use cached realtime bookings; avoid refetch to save egress
+              // Always fetch bookings for the selected date, including previous days
+              fetchBooked();
             }}
           />
             <TimeFilter
