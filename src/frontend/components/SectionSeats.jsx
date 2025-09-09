@@ -213,11 +213,31 @@ async function fetchBooked() {
     const { bookings } = await getBookedSeatsBySectionAndDate(sectionId, selectedDate); // `bookings` is an array
     const newBookedSeatDataForDate = {};
     bookings.forEach(booking => {
-      // Always store as object mapping timeslot to booking
+      // Always store as object mapping timeslot to booking (keyed by start_end)
       if (!newBookedSeatDataForDate[booking.Seat_Number]) {
         newBookedSeatDataForDate[booking.Seat_Number] = {};
       }
-      newBookedSeatDataForDate[booking.Seat_Number][booking.Timeslot] = booking;
+      // Normalize Timeslot into array of [start,end]
+      let timeslotArr = [];
+      if (booking.Timeslot) {
+        if (typeof booking.Timeslot === 'string') {
+          try {
+            const parsed = JSON.parse(booking.Timeslot);
+            if (Array.isArray(parsed.timeslot)) timeslotArr = parsed.timeslot;
+          } catch (e) {}
+        } else if (booking.Timeslot && Array.isArray(booking.Timeslot.timeslot)) {
+          timeslotArr = booking.Timeslot.timeslot;
+        }
+      }
+      if (timeslotArr.length > 0) {
+        timeslotArr.forEach(([s, e]) => {
+          const key = `${s}_${e}`;
+          newBookedSeatDataForDate[booking.Seat_Number][key] = booking;
+        });
+      } else {
+        const key = typeof booking.Timeslot === 'string' ? booking.Timeslot : JSON.stringify(booking.Timeslot);
+        newBookedSeatDataForDate[booking.Seat_Number][key] = booking;
+      }
     });
     setBookedSeatsMap(prev => ({
       ...prev,
@@ -247,7 +267,24 @@ useEffect(() => {
           const seatLabel = seatNumber;
           if (eventType === 'DELETE') {
             if (updated[selectedDate][seatLabel] && booking?.Timeslot) {
-              delete updated[selectedDate][seatLabel][booking.Timeslot];
+              // Normalize timeslots from the booking to remove each specific start_end key
+              try {
+                let times = [];
+                if (typeof booking.Timeslot === 'string') {
+                  const parsed = JSON.parse(booking.Timeslot);
+                  if (Array.isArray(parsed.timeslot)) times = parsed.timeslot;
+                } else if (booking.Timeslot && Array.isArray(booking.Timeslot.timeslot)) {
+                  times = booking.Timeslot.timeslot;
+                }
+                if (times.length > 0) {
+                  times.forEach(([s, e]) => delete updated[selectedDate][seatLabel][`${s}_${e}`]);
+                } else {
+                  delete updated[selectedDate][seatLabel][typeof booking.Timeslot === 'string' ? booking.Timeslot : JSON.stringify(booking.Timeslot)];
+                }
+              } catch (e) {
+                // fallback
+                delete updated[selectedDate][seatLabel][booking.Timeslot];
+              }
               if (Object.keys(updated[selectedDate][seatLabel]).length === 0) {
                 delete updated[selectedDate][seatLabel];
               }
@@ -256,7 +293,26 @@ useEffect(() => {
             if (!updated[selectedDate][seatLabel]) {
               updated[selectedDate][seatLabel] = {};
             }
-            updated[selectedDate][seatLabel][booking.Timeslot] = booking;
+            // Normalize timeslots and add per-timeslot keys
+            try {
+              let times = [];
+              if (typeof booking.Timeslot === 'string') {
+                const parsed = JSON.parse(booking.Timeslot);
+                if (Array.isArray(parsed.timeslot)) times = parsed.timeslot;
+              } else if (booking.Timeslot && Array.isArray(booking.Timeslot.timeslot)) {
+                times = booking.Timeslot.timeslot;
+              }
+              if (times.length > 0) {
+                times.forEach(([s, e]) => {
+                  updated[selectedDate][seatLabel][`${s}_${e}`] = booking;
+                });
+              } else {
+                const key = typeof booking.Timeslot === 'string' ? booking.Timeslot : JSON.stringify(booking.Timeslot);
+                updated[selectedDate][seatLabel][key] = booking;
+              }
+            } catch (e) {
+              updated[selectedDate][seatLabel][booking.Timeslot] = booking;
+            }
           }
           return updated;
         });
@@ -380,25 +436,58 @@ useEffect(() => {
         return;
       }
       seatUUID = match.Seat_id;
-      for (const timeslot of selectedTimeSlots) {
-        await insertBooking({
+      // Batch insert all selected timeslots in one request. The backend will return
+      // { inserted: [ ... ], conflicts: [ ... ] } for partial success.
+      try {
+        const payload = {
           created_at: date,
-          Seat_id: seatUUID, // send UUID
-          Timeslot: timeslot,
+          Seat_id: seatUUID,
+          Timeslot: JSON.stringify({ timeslot: selectedTimeSlots }),
           User_id: userId,
-        });
-      }
-      // Refetch booked seats after booking
-      const { bookings: updatedBookings } = await getBookedSeatsBySectionAndDate(sectionId, date);
-      const newBookedSeatDataForDate = {};
-      updatedBookings.forEach(booking => {
-        // Changed: Use Seat_Number as key here
-        if (!newBookedSeatDataForDate[booking.Seat_Number]) {
-          newBookedSeatDataForDate[booking.Seat_Number] = {};
+        };
+        const res = await insertBooking(payload);
+
+        // Merge inserted rows into local state without discarding other bookings
+        if (res && Array.isArray(res.inserted)) {
+          setBookedSeatsMap(prev => {
+            const updated = { ...(prev || {}) };
+            if (!updated[date]) updated[date] = {};
+            for (const booking of res.inserted) {
+              const seatNum = booking.Seat_Number;
+              if (!updated[date][seatNum]) updated[date][seatNum] = {};
+              // Normalize Timeslot into array
+              let timeslotArr = [];
+              if (booking.Timeslot) {
+                if (typeof booking.Timeslot === 'string') {
+                  try {
+                    const parsed = JSON.parse(booking.Timeslot);
+                    if (Array.isArray(parsed.timeslot)) timeslotArr = parsed.timeslot;
+                  } catch (e) {}
+                } else if (booking.Timeslot && Array.isArray(booking.Timeslot.timeslot)) {
+                  timeslotArr = booking.Timeslot.timeslot;
+                }
+              }
+              if (timeslotArr.length > 0) {
+                timeslotArr.forEach(([s, e]) => {
+                  const key = `${s}_${e}`;
+                  updated[date][seatNum][key] = booking;
+                });
+              } else {
+                const key = typeof booking.Timeslot === 'string' ? booking.Timeslot : JSON.stringify(booking.Timeslot);
+                updated[date][seatNum][key] = booking;
+              }
+            }
+            return updated;
+          });
         }
-        newBookedSeatDataForDate[booking.Seat_Number][booking.Timeslot] = booking;
-      });
-      setBookedSeatsMap(prev => ({ ...prev, [date]: newBookedSeatDataForDate })); // Use bookedSeatsMap
+
+        // Notify user about partial conflicts if any
+        if (res && Array.isArray(res.conflicts) && res.conflicts.length > 0) {
+          toast.warn('Some requested timeslots conflicted with existing bookings and were skipped.');
+        }
+      } catch (err) {
+        toast.error('Failed to book seat: ' + err.message);
+      }
       
       // Additional aggressive refreshes to ensure instant updates
       setTimeout(() => {
@@ -660,25 +749,57 @@ useEffect(() => {
                       toast.error('Failed to fetch seat UUID: ' + err.message);
                       return;
                     }
-                    await insertBooking({
-                      created_at: selectedDate,
-                      Seat_id: seatUUID,
-                      Timeslot: JSON.stringify({ timeslot: bookingData.timeslot.timeslot }),
-                      User_id: userId,
-                    });
-                    toast.success('Seat booked successfully');
-                    // Refetch booked seats after booking and update with object mapping
-                    const { bookings: updatedBookings } = await getBookedSeatsBySectionAndDate(sectionId, selectedDate);
-                    const newBookedSeatDataForDate = {};
-                    updatedBookings.forEach(booking => {
-                      if (!newBookedSeatDataForDate[booking.Seat_Number]) {
-                        newBookedSeatDataForDate[booking.Seat_Number] = {};
+                    try {
+                      const res = await insertBooking({
+                        created_at: selectedDate,
+                        Seat_id: seatUUID,
+                        Timeslot: JSON.stringify({ timeslot: bookingData.timeslot.timeslot }),
+                        User_id: userId,
+                      });
+
+                      if (res && Array.isArray(res.inserted)) {
+                        // Merge inserted rows into UI state
+                        setBookedSeatsMap(prev => {
+                          const updated = { ...(prev || {}) };
+                          if (!updated[selectedDate]) updated[selectedDate] = {};
+                          for (const booking of res.inserted) {
+                            const seatNum = booking.Seat_Number;
+                            if (!updated[selectedDate][seatNum]) updated[selectedDate][seatNum] = {};
+                            let timeslotArr = [];
+                            if (booking.Timeslot) {
+                              if (typeof booking.Timeslot === 'string') {
+                                try {
+                                  const parsed = JSON.parse(booking.Timeslot);
+                                  if (Array.isArray(parsed.timeslot)) timeslotArr = parsed.timeslot;
+                                } catch (e) {}
+                              } else if (booking.Timeslot && Array.isArray(booking.Timeslot.timeslot)) {
+                                timeslotArr = booking.Timeslot.timeslot;
+                              }
+                            }
+                            if (timeslotArr.length > 0) {
+                              timeslotArr.forEach(([s, e]) => {
+                                const key = `${s}_${e}`;
+                                updated[selectedDate][seatNum][key] = booking;
+                              });
+                            } else {
+                              const key = typeof booking.Timeslot === 'string' ? booking.Timeslot : JSON.stringify(booking.Timeslot);
+                              updated[selectedDate][seatNum][key] = booking;
+                            }
+                          }
+                          return updated;
+                        });
                       }
-                      newBookedSeatDataForDate[booking.Seat_Number][booking.Timeslot] = booking;
-                    });
-                    setBookedSeatsMap(prev => ({ ...prev, [selectedDate]: newBookedSeatDataForDate }));
-                    setShowBooking(null);
-                    setViewBookingDetails(null); // Force modal to re-render after booking
+
+                      if (res && Array.isArray(res.conflicts) && res.conflicts.length > 0) {
+                        toast.warn('Some requested timeslots conflicted with existing bookings and were skipped.');
+                      } else {
+                        toast.success('Seat booked successfully');
+                      }
+                      setShowBooking(null);
+                      setViewBookingDetails(null);
+                    } catch (err) {
+                      toast.error('Failed to book seat: ' + (err?.message || err));
+                    }
                   } else {
                     toast.error('Bookings should be made for today only and timeslot must be valid.');
                   }
@@ -689,17 +810,28 @@ useEffect(() => {
               isBookDisabled={
                 selectedDate !== new Date().toISOString().split('T')[0] ||
                 (showBooking?.preselectedRange ? false : selectedTimeSlots.length === 0) ||
-                (showBooking && showBooking.seatId && Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot)))
+                (showBooking && showBooking.seatId && (() => {
+                  const seatLabel = showBooking.seatId.replace(/^Square-/, '');
+                  const existingKeys = Object.keys(bookedSeatsMap[selectedDate]?.[seatLabel] || {});
+                  const selectedKeys = selectedTimeSlots.map(s => `${s[0]}_${s[1]}`);
+                  return selectedKeys.some(k => existingKeys.includes(k));
+                })())
               }
               isAlreadyBooked={
-                showBooking && showBooking.seatId && Object.keys(bookedSeatsMap[selectedDate]?.[showBooking.seatId.replace(/^Square-/, '')] || {}).some(slot => selectedTimeSlots.includes(slot))
+                showBooking && showBooking.seatId && (() => {
+                  const seatLabel = showBooking.seatId.replace(/^Square-/, '');
+                  const existingKeys = Object.keys(bookedSeatsMap[selectedDate]?.[seatLabel] || {});
+                  const selectedKeys = selectedTimeSlots.map(s => `${s[0]}_${s[1]}`);
+                  return selectedKeys.some(k => existingKeys.includes(k));
+                })()
               }
               bookedSeatsMap={bookedSeatsMap}
               onDelete={async () => {
                 // Find bookingId for this seat, date, and timeslot
                 const seatLabel = showBooking?.seatId?.replace(/^Square-/, '');
                 const timeslot = selectedTimeSlots[0]; // Assume single timeslot for simplicity
-                const bookingDetails = bookedSeatsMap[selectedDate]?.[seatLabel]?.[timeslot];
+                const key = timeslot ? `${timeslot[0]}_${timeslot[1]}` : null;
+                const bookingDetails = key ? bookedSeatsMap[selectedDate]?.[seatLabel]?.[key] : null;
                 if (!bookingDetails || !bookingDetails.Booking_id) {
                   toast.error('Booking not found for cancellation.');
                   return;
@@ -752,134 +884,136 @@ useEffect(() => {
                   <div style={{ marginBottom: 12, fontSize: 17 }}><strong>Seat:</strong> <span style={{ fontWeight: 600 }}>{viewBookingDetails.seatLabel}</span></div>
                   <div style={{ marginBottom: 12, fontSize: 16, fontWeight: 600 }}>Time Slots:</div>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
-                    {(() => {
-                      const DAY_START = "00:00";
-                      const DAY_END = "23:59";
-                      const seatLabel = viewBookingDetails.seatLabel;
-                      let allBookingsForSeat = [];
-                      if (bookedSeatsMap[selectedDate] && bookedSeatsMap[selectedDate][seatLabel]) {
-                        const raw = bookedSeatsMap[selectedDate][seatLabel];
-                        if (Array.isArray(raw)) {
-                          allBookingsForSeat = raw;
-                        } else if (typeof raw === 'object' && raw !== null) {
-                          allBookingsForSeat = Object.values(raw);
-                        }
-                      }
-                      let bookedRanges = [];
-                      allBookingsForSeat.forEach(booking => {
-                        let timeslotArr = [];
-                        if (booking.Timeslot) {
-                          if (typeof booking.Timeslot === 'string') {
-                            try {
-                              const parsed = JSON.parse(booking.Timeslot);
-                              if (Array.isArray(parsed.timeslot)) {
-                                timeslotArr = parsed.timeslot;
-                              }
-                            } catch (e) {
-                              timeslotArr = [];
-                            }
-                          } else if (typeof booking.Timeslot === 'object' && Array.isArray(booking.Timeslot.timeslot)) {
-                            timeslotArr = booking.Timeslot.timeslot;
+                      {(() => {
+                        const DAY_START = "00:00";
+                        const DAY_END = "23:59";
+                        const seatLabel = viewBookingDetails.seatLabel;
+                        let allBookingsForSeat = [];
+                        if (bookedSeatsMap[selectedDate] && bookedSeatsMap[selectedDate][seatLabel]) {
+                          const raw = bookedSeatsMap[selectedDate][seatLabel];
+                          if (Array.isArray(raw)) {
+                            allBookingsForSeat = raw;
+                          } else if (typeof raw === 'object' && raw !== null) {
+                            allBookingsForSeat = Object.values(raw);
                           }
                         }
-                        timeslotArr.forEach(([start, end]) => {
-                          bookedRanges.push({ start, end, name: booking.Name, booking });
-                        });
-                      });
-                      bookedRanges.sort((a, b) => a.start.localeCompare(b.start));
-                      let slots = [];
-                      let prevEnd = DAY_START;
-                      for (let b of bookedRanges) {
-                        if (prevEnd < b.start) {
-                          slots.push({ start: prevEnd, end: b.start, name: null });
-                        }
-                        slots.push({ start: b.start, end: b.end, name: b.name, booking: b.booking });
-                        prevEnd = b.end;
-                      }
-                      if (prevEnd < DAY_END) {
-                        slots.push({ start: prevEnd, end: DAY_END, name: null });
-                      }
-                      slots = slots.filter(s => s.start !== s.end);
-                      return slots.map((range, idx) => {
-                        const isCreator = range.booking && range.booking.User_id === userId;
-                        return (
-                          <li key={idx}
-                            style={{
-                              marginBottom: 12,
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              padding: '0 0 0 2px',
-                              minHeight: 32,
-                              cursor: !range.name ? 'pointer' : 'default',
-                            }}
-                            onClick={() => {
-                              if (!range.name) {
-                                setShowBooking({
-                                  seatId: viewBookingDetails.seatId,
-                                  seatLabel: viewBookingDetails.seatLabel,
-                                  date: selectedDate,
-                                  preselectedSlot: null,
-                                  preselectedRange: [range.start, range.end]
-                                });
-                                setSelectedTimeSlots([[range.start, range.end]]);
-                                setViewBookingDetails(null);
+                        // Debug: log all bookings for this seat/date
+                        console.log('All bookings for seat', seatLabel, 'on', selectedDate, allBookingsForSeat);
+                        let bookedRanges = [];
+                        allBookingsForSeat.forEach(booking => {
+                          let timeslotArr = [];
+                          if (booking.Timeslot) {
+                            if (typeof booking.Timeslot === 'string') {
+                              try {
+                                const parsed = JSON.parse(booking.Timeslot);
+                                if (Array.isArray(parsed.timeslot)) {
+                                  timeslotArr = parsed.timeslot;
+                                }
+                              } catch (e) {
+                                timeslotArr = [];
                               }
-                            }}
-                          >
-                            <span style={{ fontSize: 15 }}>{range.start} - {range.end}</span>
-                            <span style={{
-                              fontWeight: 600,
-                              color: range.name ? '#e11d48' : '#059669',
-                              fontSize: 15,
-                              marginLeft: 8,
-                              marginRight: range.name ? 10 : 0,
-                              textDecoration: !range.name ? 'underline' : 'none',
-                            }}>
-                              {range.name ? `Booked by ${range.name}` : 'Available'}
-                            </span>
-                            {/* Show edit/delete buttons only for creator */}
-                            {isCreator && range.booking && (
-                              <span style={{ display: 'flex', gap: 8 }}>
-                                <button
-                                  style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    // Open modal for editing this booking
-                                    setShowBooking({
-                                      seatId: viewBookingDetails.seatId,
-                                      seatLabel: viewBookingDetails.seatLabel,
-                                      date: selectedDate,
-                                      preselectedSlot: null,
-                                      preselectedRange: [range.start, range.end],
-                                      bookingId: range.booking.Booking_id,
-                                      isEdit: true,
-                                      bookingDetails: range.booking,
-                                    });
-                                    setSelectedTimeSlots([[range.start, range.end]]);
-                                    setViewBookingDetails(null);
-                                  }}
-                                >Edit</button>
-                                <button
-                                  style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    try {
-                                      await deleteBooking(range.booking.Booking_id);
-                                      toast.success('Booking deleted.');
-                                      fetchBooked();
-                                      setViewBookingDetails(null);
-                                    } catch (err) {
-                                      toast.error('Failed to delete booking: ' + err.message);
-                                    }
-                                  }}
-                                >Delete</button>
+                            } else if (typeof booking.Timeslot === 'object' && Array.isArray(booking.Timeslot.timeslot)) {
+                              timeslotArr = booking.Timeslot.timeslot;
+                            }
+                          }
+                          timeslotArr.forEach(([start, end]) => {
+                            bookedRanges.push({ start, end, name: booking.Name, booking });
+                          });
+                        });
+                        bookedRanges.sort((a, b) => a.start.localeCompare(b.start));
+                        let slots = [];
+                        let prevEnd = DAY_START;
+                        for (let b of bookedRanges) {
+                          if (prevEnd < b.start) {
+                            slots.push({ start: prevEnd, end: b.start, name: null });
+                          }
+                          slots.push({ start: b.start, end: b.end, name: b.name, booking: b.booking });
+                          prevEnd = b.end;
+                        }
+                        if (prevEnd < DAY_END) {
+                          slots.push({ start: prevEnd, end: DAY_END, name: null });
+                        }
+                        slots = slots.filter(s => s.start !== s.end);
+                        return slots.map((range, idx) => {
+                          const isCreator = range.booking && range.booking.User_id === userId;
+                          return (
+                            <li key={idx}
+                              style={{
+                                marginBottom: 12,
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '0 0 0 2px',
+                                minHeight: 32,
+                                cursor: !range.name ? 'pointer' : 'default',
+                              }}
+                              onClick={() => {
+                                if (!range.name) {
+                                  setShowBooking({
+                                    seatId: viewBookingDetails.seatId,
+                                    seatLabel: viewBookingDetails.seatLabel,
+                                    date: selectedDate,
+                                    preselectedSlot: null,
+                                    preselectedRange: [range.start, range.end]
+                                  });
+                                  setSelectedTimeSlots([[range.start, range.end]]);
+                                  setViewBookingDetails(null);
+                                }
+                              }}
+                            >
+                              <span style={{ fontSize: 15 }}>{range.start} - {range.end}</span>
+                              <span style={{
+                                fontWeight: 600,
+                                color: range.name ? '#e11d48' : '#059669',
+                                fontSize: 15,
+                                marginLeft: 8,
+                                marginRight: range.name ? 10 : 0,
+                                textDecoration: !range.name ? 'underline' : 'none',
+                              }}>
+                                {range.name ? `Booked by ${range.name}` : 'Available'}
                               </span>
-                            )}
-                          </li>
-                        );
-                      });
-                    })()}
+                              {/* Show edit/delete buttons only for creator */}
+                              {isCreator && range.booking && (
+                                <span style={{ display: 'flex', gap: 8 }}>
+                                  <button
+                                    style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      // Open modal for editing this booking
+                                      setShowBooking({
+                                        seatId: viewBookingDetails.seatId,
+                                        seatLabel: viewBookingDetails.seatLabel,
+                                        date: selectedDate,
+                                        preselectedSlot: null,
+                                        preselectedRange: [range.start, range.end],
+                                        bookingId: range.booking.Booking_id,
+                                        isEdit: true,
+                                        bookingDetails: range.booking,
+                                      });
+                                      setSelectedTimeSlots([[range.start, range.end]]);
+                                      setViewBookingDetails(null);
+                                    }}
+                                  >Edit</button>
+                                  <button
+                                    style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try {
+                                        await deleteBooking(range.booking.Booking_id);
+                                        toast.success('Booking deleted.');
+                                        fetchBooked();
+                                        setViewBookingDetails(null);
+                                      } catch (err) {
+                                        toast.error('Failed to delete booking: ' + err.message);
+                                      }
+                                    }}
+                                  >Delete</button>
+                                </span>
+                              )}
+                            </li>
+                          );
+                        });
+                      })()}
                   </ul>
                   <button
                     style={{

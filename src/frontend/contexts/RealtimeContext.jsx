@@ -196,9 +196,26 @@ export const RealtimeProvider = ({ children }) => {
       // Only process if we have the seat number and it belongs to the current section
       if (seatNumber && seatNumber.startsWith(sectionId)) {
         
+        // Helper to extract timeslot arrays from a booking record
+        const extractTimeslots = (rec) => {
+          const out = [];
+          if (!rec || !rec.Timeslot) return out;
+          try {
+            if (typeof rec.Timeslot === 'string') {
+              const parsed = JSON.parse(rec.Timeslot);
+              if (Array.isArray(parsed.timeslot)) return parsed.timeslot;
+            } else if (typeof rec.Timeslot === 'object' && Array.isArray(rec.Timeslot.timeslot)) {
+              return rec.Timeslot.timeslot;
+            }
+          } catch (e) {
+            return out;
+          }
+          return out;
+        };
+
         setBookingsBySection(prev => {
           const updated = { ...prev };
-          
+
           // Ensure section and date exist
           if (!updated[sectionId]) updated[sectionId] = {};
           if (!updated[sectionId][date]) updated[sectionId][date] = {};
@@ -206,24 +223,41 @@ export const RealtimeProvider = ({ children }) => {
 
           switch (eventType) {
             case 'INSERT':
-            case 'UPDATE':
-              // Add or update the booking
-              updated[sectionId][date][seatNumber][newRecord.Timeslot] = {
-                ...newRecord,
-                Seat_Number: seatNumber
-              };
-              break;
-            
-            case 'DELETE':
-              // Remove the booking
-              if (oldRecord?.Timeslot) {
-                delete updated[sectionId][date][seatNumber][oldRecord.Timeslot];
-                
-                // Clean up empty objects
-                if (Object.keys(updated[sectionId][date][seatNumber]).length === 0) {
-                  delete updated[sectionId][date][seatNumber];
-                }
+            case 'UPDATE': {
+              const times = extractTimeslots(newRecord);
+              if (times.length > 0) {
+                times.forEach(([s, e]) => {
+                  const key = `${s}_${e}`;
+                  updated[sectionId][date][seatNumber][key] = {
+                    ...newRecord,
+                    Seat_Number: seatNumber
+                  };
+                });
+              } else {
+                // Fallback for legacy string timeslot
+                const key = typeof newRecord.Timeslot === 'string' ? newRecord.Timeslot : JSON.stringify(newRecord.Timeslot);
+                updated[sectionId][date][seatNumber][key] = { ...newRecord, Seat_Number: seatNumber };
               }
+            }
+              break;
+
+            case 'DELETE': {
+              const times = extractTimeslots(oldRecord);
+              if (times.length > 0) {
+                times.forEach(([s, e]) => {
+                  const key = `${s}_${e}`;
+                  delete updated[sectionId][date][seatNumber][key];
+                });
+              } else if (oldRecord?.Timeslot) {
+                const key = typeof oldRecord.Timeslot === 'string' ? oldRecord.Timeslot : JSON.stringify(oldRecord.Timeslot);
+                delete updated[sectionId][date][seatNumber][key];
+              }
+
+              // Clean up empty objects
+              if (Object.keys(updated[sectionId][date][seatNumber] || {}).length === 0) {
+                delete updated[sectionId][date][seatNumber];
+              }
+            }
               break;
           }
 
@@ -285,15 +319,33 @@ export const RealtimeProvider = ({ children }) => {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/section/${sectionId}/date/${date}`);
       const { bookings } = await response.json();
       
-      // Process and update local state
+      // Process and update local state (normalize Timeslot into start_end keys)
       const processedBookings = {};
+      const extractTimeslots = (rec) => {
+        const out = [];
+        if (!rec || !rec.Timeslot) return out;
+        try {
+          if (typeof rec.Timeslot === 'string') {
+            const parsed = JSON.parse(rec.Timeslot);
+            if (Array.isArray(parsed.timeslot)) return parsed.timeslot;
+          } else if (typeof rec.Timeslot === 'object' && Array.isArray(rec.Timeslot.timeslot)) {
+            return rec.Timeslot.timeslot;
+          }
+        } catch (e) { return out; }
+        return out;
+      };
+
       for (const booking of bookings) {
-        if (!processedBookings[booking.Seat_Number]) {
-          processedBookings[booking.Seat_Number] = {};
+        if (!processedBookings[booking.Seat_Number]) processedBookings[booking.Seat_Number] = {};
+        const times = extractTimeslots(booking);
+        if (times.length > 0) {
+          times.forEach(([s, e]) => processedBookings[booking.Seat_Number][`${s}_${e}`] = booking);
+        } else {
+          const key = typeof booking.Timeslot === 'string' ? booking.Timeslot : JSON.stringify(booking.Timeslot);
+          processedBookings[booking.Seat_Number][key] = booking;
         }
-        processedBookings[booking.Seat_Number][booking.Timeslot] = booking;
       }
-      
+
       setBookingsBySection(prev => ({
         ...prev,
         [sectionId]: {

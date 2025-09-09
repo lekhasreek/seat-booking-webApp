@@ -208,8 +208,7 @@ app.post('/api/bookings', async (req, res) =>
     return res.status(500).json({ error: 'Error checking for existing booking', details: existingBookingError.message });
   }
 
-  // Check for overlapping timeslots
-  let conflict = false;
+  // Check for overlapping timeslots and allow insertion of non-conflicting slots
   let requestedTimeslots = [];
   try {
     // Accept both stringified and object Timeslot
@@ -226,35 +225,47 @@ app.post('/api/bookings', async (req, res) =>
     return res.status(400).json({ error: 'Invalid Timeslot format. Must be JSON: { timeslot: [["09:00", "14:00"]] }' });
   }
 
+  // Build a flat list of existing timeslots for this seat/date
+  const existingFlat = [];
   for (const booking of existingBookings) {
-    let existingTimeslots = [];
     try {
+      let ets = [];
       if (typeof booking.Timeslot === 'string') {
-        existingTimeslots = JSON.parse(booking.Timeslot).timeslot;
+        ets = JSON.parse(booking.Timeslot).timeslot || [];
       } else if (typeof booking.Timeslot === 'object' && booking.Timeslot.timeslot) {
-        existingTimeslots = booking.Timeslot.timeslot;
+        ets = booking.Timeslot.timeslot;
       }
-      if (!Array.isArray(existingTimeslots)) continue;
-    } catch (e) {
-      continue;
-    }
-    // Check for any overlap
-    for (const [reqStart, reqEnd] of requestedTimeslots) {
-      for (const [existStart, existEnd] of existingTimeslots) {
-        if (
-          (reqStart < existEnd && reqEnd > existStart) // Overlap condition
-        ) {
-          conflict = true;
-          break;
-        }
+      if (Array.isArray(ets)) {
+        ets.forEach(([s, e]) => existingFlat.push([s, e]));
       }
-      if (conflict) break;
+    } catch (err) {
+      // ignore malformed
     }
-    if (conflict) break;
   }
 
-  if (conflict) {
-    return res.status(409).json({ error: 'This seat is already booked for one or more of the selected timeslots.' });
+  // Helper to check overlap between two [start,end] strings (HH:MM)
+  const overlaps = (a, b) => {
+    const [aStart, aEnd] = a;
+    const [bStart, bEnd] = b;
+    return (aStart < bEnd && aEnd > bStart);
+  };
+
+  const nonConflicting = [];
+  const conflicts = [];
+  for (const req of requestedTimeslots) {
+    let hasConflict = false;
+    for (const exist of existingFlat) {
+      if (overlaps(req, exist)) {
+        hasConflict = true;
+        break;
+      }
+    }
+    if (hasConflict) conflicts.push(req); else nonConflicting.push(req);
+  }
+
+  if (nonConflicting.length === 0) {
+    // Nothing to insert
+    return res.status(409).json({ error: 'All requested timeslots conflict with existing bookings.', conflicts });
   }
   // =========================================================================
 
@@ -271,35 +282,30 @@ app.post('/api/bookings', async (req, res) =>
   }
   const bookedUserName = userRows.Name;
 
-  // Insert the new booking into the 'Bookings' table
-  // For Supabase json column, store as native object
-  let timeslotToStore;
-  if (typeof Timeslot === 'string') {
-    try {
-      timeslotToStore = JSON.parse(Timeslot);
-    } catch (e) {
-      timeslotToStore = Timeslot;
-    }
-  } else {
-    timeslotToStore = Timeslot;
-  }
+  // Insert one booking row per non-conflicting timeslot
+  const inserts = nonConflicting.map(slot => ({
+    created_at,
+    Seat_id,
+    Seat_Number: Seat_Number_db,
+    Timeslot: { timeslot: [slot] },
+    Name: bookedUserName,
+    User_id
+  }));
 
-  const { data, error } = await supabase.from('Bookings').insert([
-    {
-      created_at,
-      Seat_id,
-      Seat_Number: Seat_Number_db,
-      Timeslot: timeslotToStore,
-      Name: bookedUserName,
-      User_id
+  try {
+    const { data: inserted, error: insertError } = await supabase.from('Bookings').insert(inserts);
+    if (insertError) {
+      console.error('Supabase insert error:', insertError);
+      return res.status(500).json({ error: insertError.message, details: insertError.details, body: req.body });
     }
-  ]);
-
-  if (error) {
-    console.error('Supabase insert error:', error);
-    return res.status(500).json({ error: error.message, details: error.details, body: req.body });
+    // Return inserted records and any conflicts that were skipped
+    const response = { inserted };
+    if (conflicts.length > 0) response.conflicts = conflicts;
+    return res.status(201).json(response);
+  } catch (err) {
+    console.error('Unexpected insert error:', err);
+    return res.status(500).json({ error: 'Unexpected server error', details: err.message });
   }
-  res.status(201).json({ data });
 
 // ===============================================
 // DELETE /api/bookings/:bookingId - Cancel a booking
@@ -330,6 +336,80 @@ app.put('/api/bookings/:bookingId', async (req, res) => {
   const updateFields = req.body; // { Seat_id, Timeslot, Date, ... }
 
   try {
+    // If Timeslot is being updated, perform overlap check against other bookings for same seat/date
+    if (updateFields.Timeslot) {
+      // Normalize timeslot into array of [start,end]
+      let requestedTimeslots = [];
+      try {
+        if (typeof updateFields.Timeslot === 'string') {
+          requestedTimeslots = JSON.parse(updateFields.Timeslot).timeslot;
+        } else if (typeof updateFields.Timeslot === 'object' && updateFields.Timeslot.timeslot) {
+          requestedTimeslots = updateFields.Timeslot.timeslot;
+        }
+        if (!Array.isArray(requestedTimeslots)) requestedTimeslots = [];
+      } catch (err) {
+        requestedTimeslots = [];
+      }
+
+      // Fetch the existing booking to get Seat_id and created_at (date)
+      const { data: existingBooking, error: fetchErr } = await supabase
+        .from('Bookings')
+        .select('Booking_id, Seat_id, created_at, Timeslot')
+        .eq('Booking_id', bookingId)
+        .maybeSingle();
+      if (fetchErr || !existingBooking) {
+        console.error('Failed to fetch booking for update check:', fetchErr, existingBooking);
+        return res.status(400).json({ error: 'Booking not found for update' });
+      }
+
+      const seatId = updateFields.Seat_id || existingBooking.Seat_id;
+      const createdAt = updateFields.created_at || existingBooking.created_at;
+
+      // Get other bookings for same seat and date (exclude this bookingId)
+      const startOfDay = `${createdAt}T00:00:00.000Z`;
+      const endOfDay = `${createdAt}T23:59:59.999Z`;
+      const { data: otherBookings, error: otherErr } = await supabase
+        .from('Bookings')
+        .select('Booking_id, Timeslot')
+        .eq('Seat_id', seatId)
+        .neq('Booking_id', bookingId)
+        .gte('created_at', startOfDay)
+        .lte('created_at', endOfDay);
+      if (otherErr) {
+        console.error('Error fetching other bookings for update check:', otherErr);
+        return res.status(500).json({ error: otherErr.message });
+      }
+
+      // Flatten existing timeslots
+      const existingFlat = [];
+      for (const b of otherBookings || []) {
+        try {
+          if (typeof b.Timeslot === 'string') {
+            const parsed = JSON.parse(b.Timeslot);
+            if (Array.isArray(parsed.timeslot)) parsed.timeslot.forEach(t => existingFlat.push(t));
+          } else if (b.Timeslot && Array.isArray(b.Timeslot.timeslot)) {
+            b.Timeslot.timeslot.forEach(t => existingFlat.push(t));
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      const overlaps = (a, b) => {
+        const [aStart, aEnd] = a;
+        const [bStart, bEnd] = b;
+        return (aStart < bEnd && aEnd > bStart);
+      };
+
+      for (const req of requestedTimeslots) {
+        for (const exist of existingFlat) {
+          if (overlaps(req, exist)) {
+            return res.status(409).json({ error: 'Requested timeslot overlaps with another booking.' });
+          }
+        }
+      }
+    }
+
     const { error } = await supabase
       .from('Bookings')
       .update(updateFields)
