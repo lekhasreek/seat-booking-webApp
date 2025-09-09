@@ -156,6 +156,28 @@ app.get('/api/bookings', async (req, res) => {
   }
 });
 
+// ===============================================
+// GET /api/users/:userId - Return user record (used to fetch role)
+// ===============================================
+app.get('/api/users/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from('Users')
+      .select('*')
+      .eq('User_id', userId)
+      .maybeSingle();
+    if (error) {
+      console.error('Error fetching user:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json(data || {});
+  } catch (err) {
+    console.error('Unexpected error fetching user:', err);
+    res.status(500).json({ error: 'Unexpected error', details: err.message });
+  }
+});
+
 
 // ===============================================
 // POST /api/bookings - Insert a new booking
@@ -330,6 +352,29 @@ app.put('/api/bookings/:bookingId', async (req, res) => {
   const updateFields = req.body; // { Seat_id, Timeslot, Date, ... }
 
   try {
+    // If Timeslot is present and is an empty array, delete the booking
+    if (
+      updateFields.Timeslot &&
+      ((typeof updateFields.Timeslot === 'string' && (() => {
+        try {
+          const parsed = JSON.parse(updateFields.Timeslot);
+          return Array.isArray(parsed.timeslot) && parsed.timeslot.length === 0;
+        } catch (e) { return false; }
+      })()) ||
+      (typeof updateFields.Timeslot === 'object' && Array.isArray(updateFields.Timeslot.timeslot) && updateFields.Timeslot.timeslot.length === 0))
+    ) {
+      // Delete the booking
+      const { error } = await supabase
+        .from('Bookings')
+        .delete()
+        .eq('Booking_id', bookingId);
+      if (error) {
+        console.error('Error deleting booking:', error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ success: true, deleted: true });
+    }
+    // Otherwise, update as normal
     const { error } = await supabase
       .from('Bookings')
       .update(updateFields)
