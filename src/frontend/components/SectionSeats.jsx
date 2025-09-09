@@ -34,7 +34,7 @@ const SeatOverlayContext = React.createContext({
 
 
 // Overlay for a single seat, with hover state for booked seats
-function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHoverBookingDetails = () => {}, setViewBookingDetails, bookedSeatsMap, selectedRange, userRole, selectedSeatsForBooking, setSelectedSeatsForBooking }) { // Added selectedRange for time filter
+function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHoverBookingDetails = () => {}, setViewBookingDetails, bookedSeatsMap, selectedRange, userRole, selectedSeatsForBooking, setSelectedSeatsForBooking, openBookingModal }) { // Added selectedRange for time filter
   // Use lifted state for blue highlight
   const { activeSeat, selectedDateForActive, setActiveSeat } = React.useContext(SeatOverlayContext);
   // Correct the date comparison for isActive
@@ -135,12 +135,21 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
           (async () => {
             const hasAppliedRange = selectedRange?.checkIn && selectedRange?.checkOut;
             const preRange = hasAppliedRange ? [selectedRange.checkIn, selectedRange.checkOut] : undefined;
-            await openBookingModal({
-              seatId: overlay.id,
-              seatLabel: seatLabel,
-              date: selectedDate,
-              ...(hasAppliedRange ? { preselectedRange: preRange } : {}),
-            });
+            if (typeof openBookingModal === 'function') {
+              await openBookingModal({
+                seatId: overlay.id,
+                seatLabel: seatLabel,
+                date: selectedDate,
+                ...(hasAppliedRange ? { preselectedRange: preRange } : {}),
+              });
+            } else {
+              setShowBooking({
+                seatId: overlay.id,
+                seatLabel: seatLabel,
+                date: selectedDate,
+                ...(hasAppliedRange ? { preselectedRange: preRange } : {}),
+              });
+            }
           })();
         } else {
           setViewBookingDetails({
@@ -748,7 +757,6 @@ useEffect(() => {
               <div key={overlay.id} style={{ position: 'relative' }}>
                 {/* For lead users allow multi-select by ctrl/cmd click - here we enable toggle on click when role is lead via userService or user metadata; fallback: allow always if userId present and multi-select not harmful */}
                 <SeatOverlay
-                key={overlay.id}
                 overlay={overlay}
                 // isBooked if there are any bookings for this seat on the selected date
                 isBooked={Object.keys(bookedSeatsMap[selectedDate]?.[overlay.id.replace(/^Square-/, '')] || {}).length > 0} // Changed: Use normalized seat label here
@@ -761,6 +769,7 @@ useEffect(() => {
                 userRole={userRole}
                 selectedSeatsForBooking={selectedSeatsForBooking}
                 setSelectedSeatsForBooking={setSelectedSeatsForBooking}
+                openBookingModal={openBookingModal}
               />
                 {/* Small checkbox indicator for selected seats (lead multi-select) */}
                 {selectedSeatsForBooking.includes(overlay.id.replace(/^Square-/, '')) && (
@@ -776,7 +785,7 @@ useEffect(() => {
               <div style={{ position: 'absolute', left: 16, bottom: 24, zIndex: 60, display: 'flex', gap: 8 }}>
                 <button
                   onClick={async () => {
-                    // Open booking modal with multiple seats; refresh backend state first
+                    // Open the booking modal for the selected seats; ensure backend state is fresh
                     await openBookingModal({
                       seatId: null,
                       seatLabel: null,
