@@ -34,7 +34,7 @@ const SeatOverlayContext = React.createContext({
 
 
 // Overlay for a single seat, with hover state for booked seats
-function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHoverBookingDetails = () => {}, setViewBookingDetails, bookedSeatsMap, selectedRange, userRole, selectedSeatsForBooking, setSelectedSeatsForBooking }) { // Added selectedRange for time filter
+function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHoverBookingDetails = () => {}, setViewBookingDetails, bookedSeatsMap, selectedRange, userRole, selectedSeatsForBooking, setSelectedSeatsForBooking, openBookingModal }) { // Added selectedRange for time filter
   // Use lifted state for blue highlight
   const { activeSeat, selectedDateForActive, setActiveSeat } = React.useContext(SeatOverlayContext);
   // Correct the date comparison for isActive
@@ -782,7 +782,7 @@ useEffect(() => {
               <div style={{ position: 'absolute', left: 16, bottom: 24, zIndex: 60, display: 'flex', gap: 8 }}>
                 <button
                   onClick={async () => {
-                    // Open booking modal with multiple seats; refresh backend state first
+                    // Open the booking modal for the selected seats; ensure backend state is fresh
                     await openBookingModal({
                       seatId: null,
                       seatLabel: null,
