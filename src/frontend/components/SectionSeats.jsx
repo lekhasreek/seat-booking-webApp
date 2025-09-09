@@ -249,51 +249,30 @@ async function fetchBooked() {
 }
 
 useEffect(() => {
-  // Initial fetch
+  // Fetch bookings for current section/date and set up real-time subscription
   fetchBooked();
-  // Set up real-time subscription
-  if (sectionId && selectedDate) {
-    // Unsubscribe from previous subscription if exists
-    if (activeSubscriptionRef.current) {
+
+  if (!sectionId || !selectedDate) return;
+
+  // If there's an existing subscription, unsubscribe it first
+  if (activeSubscriptionRef.current) {
+    try {
       unsubscribeFromBookings(activeSubscriptionRef.current);
-    }
-    // Subscribe to real-time updates
-    const setupSubscription = async () => {
-      const subscriptionKey = await subscribeToBookings(sectionId, selectedDate, (update) => {
-        const { eventType, seatNumber, booking } = update;
-        setBookedSeatsMap(prev => {
-          const updated = { ...prev };
-          if (!updated[selectedDate]) updated[selectedDate] = {};
-          const seatLabel = seatNumber;
-          if (eventType === 'DELETE') {
-            if (updated[selectedDate][seatLabel] && booking?.Timeslot) {
-              // Normalize timeslots from the booking to remove each specific start_end key
-              try {
-                let times = [];
-                if (typeof booking.Timeslot === 'string') {
-                  const parsed = JSON.parse(booking.Timeslot);
-                  if (Array.isArray(parsed.timeslot)) times = parsed.timeslot;
-                } else if (booking.Timeslot && Array.isArray(booking.Timeslot.timeslot)) {
-                  times = booking.Timeslot.timeslot;
-                }
-                if (times.length > 0) {
-                  times.forEach(([s, e]) => delete updated[selectedDate][seatLabel][`${s}_${e}`]);
-                } else {
-                  delete updated[selectedDate][seatLabel][typeof booking.Timeslot === 'string' ? booking.Timeslot : JSON.stringify(booking.Timeslot)];
-                }
-              } catch (e) {
-                // fallback
-                delete updated[selectedDate][seatLabel][booking.Timeslot];
-              }
-              if (Object.keys(updated[selectedDate][seatLabel]).length === 0) {
-                delete updated[selectedDate][seatLabel];
-              }
-            }
-          } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
-            if (!updated[selectedDate][seatLabel]) {
-              updated[selectedDate][seatLabel] = {};
-            }
-            // Normalize timeslots and add per-timeslot keys
+    } catch (e) { /* ignore */ }
+    activeSubscriptionRef.current = null;
+  }
+
+  let mounted = true;
+  const setupSubscription = async () => {
+    const subscriptionKey = await subscribeToBookings(sectionId, selectedDate, (update) => {
+      if (!mounted) return;
+      const { eventType, seatNumber, booking } = update;
+      setBookedSeatsMap(prev => {
+        const updated = { ...prev };
+        if (!updated[selectedDate]) updated[selectedDate] = {};
+        const seatLabel = seatNumber;
+        if (eventType === 'DELETE') {
+          if (updated[selectedDate][seatLabel] && booking?.Timeslot) {
             try {
               let times = [];
               if (typeof booking.Timeslot === 'string') {
@@ -303,32 +282,57 @@ useEffect(() => {
                 times = booking.Timeslot.timeslot;
               }
               if (times.length > 0) {
-                times.forEach(([s, e]) => {
-                  updated[selectedDate][seatLabel][`${s}_${e}`] = booking;
-                });
+                times.forEach(([s, e]) => delete updated[selectedDate][seatLabel][`${s}_${e}`]);
               } else {
-                const key = typeof booking.Timeslot === 'string' ? booking.Timeslot : JSON.stringify(booking.Timeslot);
-                updated[selectedDate][seatLabel][key] = booking;
+                delete updated[selectedDate][seatLabel][typeof booking.Timeslot === 'string' ? booking.Timeslot : JSON.stringify(booking.Timeslot)];
               }
             } catch (e) {
-              updated[selectedDate][seatLabel][booking.Timeslot] = booking;
+              delete updated[selectedDate][seatLabel][booking.Timeslot];
+            }
+            if (Object.keys(updated[selectedDate][seatLabel]).length === 0) {
+              delete updated[selectedDate][seatLabel];
             }
           }
-          return updated;
-        });
+        } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
+          if (!updated[selectedDate][seatLabel]) {
+            updated[selectedDate][seatLabel] = {};
+          }
+          try {
+            let times = [];
+            if (typeof booking.Timeslot === 'string') {
+              const parsed = JSON.parse(booking.Timeslot);
+              if (Array.isArray(parsed.timeslot)) times = parsed.timeslot;
+            } else if (booking.Timeslot && Array.isArray(booking.Timeslot.timeslot)) {
+              times = booking.Timeslot.timeslot;
+            }
+            if (times.length > 0) {
+              times.forEach(([s, e]) => {
+                updated[selectedDate][seatLabel][`${s}_${e}`] = booking;
+              });
+            } else {
+              const key = typeof booking.Timeslot === 'string' ? booking.Timeslot : JSON.stringify(booking.Timeslot);
+              updated[selectedDate][seatLabel][key] = booking;
+            }
+          } catch (e) {
+            updated[selectedDate][seatLabel][booking.Timeslot] = booking;
+          }
+        }
+        return updated;
       });
-      activeSubscriptionRef.current = subscriptionKey;
-    };
-    setupSubscription();
-    // Cleanup function
-    return () => {
-      if (activeSubscriptionRef.current) {
-        unsubscribeFromBookings(activeSubscriptionRef.current);
-        activeSubscriptionRef.current = null;
-      }
-    };
-  }
-}, []);
+    });
+    activeSubscriptionRef.current = subscriptionKey;
+  };
+
+  setupSubscription();
+
+  return () => {
+    mounted = false;
+    if (activeSubscriptionRef.current) {
+      try { unsubscribeFromBookings(activeSubscriptionRef.current); } catch (e) { }
+      activeSubscriptionRef.current = null;
+    }
+  };
+}, [sectionId, selectedDate]);
 
   const [seats, setSeats] = useState([]);
 
@@ -797,8 +801,12 @@ useEffect(() => {
                       }
                       setShowBooking(null);
                       setViewBookingDetails(null);
+                      // Return the API result so the caller can await and the modal can close after UI update
+                      return res;
                     } catch (err) {
                       toast.error('Failed to book seat: ' + (err?.message || err));
+                      // Rethrow so parent can handle
+                      throw err;
                     }
                   } else {
                     toast.error('Bookings should be made for today only and timeslot must be valid.');
@@ -870,20 +878,26 @@ useEffect(() => {
                     background: '#fff',
                     borderRadius: 16,
                     boxShadow: '0 4px 24px #0002',
-                    padding: '32px 36px 28px 36px',
+                    padding: 0,
                     minWidth: 320,
-                    maxWidth: 400,
+                    maxWidth: 420,
+                    width: '90vw',
+                    maxHeight: '80vh',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     position: 'relative',
+                    overflow: 'hidden',
                   }}
                   onClick={e => e.stopPropagation()}
                 >
-                  <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 18, letterSpacing: 0.2 }}>Booking Details</div>
-                  <div style={{ marginBottom: 12, fontSize: 17 }}><strong>Seat:</strong> <span style={{ fontWeight: 600 }}>{viewBookingDetails.seatLabel}</span></div>
-                  <div style={{ marginBottom: 12, fontSize: 16, fontWeight: 600 }}>Time Slots:</div>
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
+                  <div style={{ padding: '24px 28px 12px 28px', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 8, letterSpacing: 0.2, textAlign: 'center' }}>Booking Details</div>
+                    <div style={{ marginBottom: 8, fontSize: 17, textAlign: 'center' }}><strong>Seat:</strong> <span style={{ fontWeight: 600 }}>{viewBookingDetails.seatLabel}</span></div>
+                    <div style={{ marginBottom: 8, fontSize: 16, fontWeight: 600, textAlign: 'center' }}>Time Slots:</div>
+                  </div>
+                  <div style={{ padding: '0 28px 0 28px', width: '100%', boxSizing: 'border-box', flex: 1, overflowY: 'auto' }}>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
                       {(() => {
                         const DAY_START = "00:00";
                         const DAY_END = "23:59";
@@ -894,7 +908,20 @@ useEffect(() => {
                           if (Array.isArray(raw)) {
                             allBookingsForSeat = raw;
                           } else if (typeof raw === 'object' && raw !== null) {
-                            allBookingsForSeat = Object.values(raw);
+                            // Deduplicate by Booking_id because the same booking object may be
+                            // referenced under multiple keys (fallback string key + start_end key).
+                            const seen = new Set();
+                            const uniq = [];
+                            Object.values(raw).forEach(b => {
+                              const id = b && (b.Booking_id || b.booking_id || b.id);
+                              if (id) {
+                                if (!seen.has(id)) { seen.add(id); uniq.push(b); }
+                              } else {
+                                // If no id, still include but avoid exact object duplicates
+                                if (!uniq.includes(b)) uniq.push(b);
+                              }
+                            });
+                            allBookingsForSeat = uniq;
                           }
                         }
                         // Debug: log all bookings for this seat/date
@@ -1015,9 +1042,10 @@ useEffect(() => {
                         });
                       })()}
                   </ul>
+                </div>
+                <div style={{ padding: '16px 28px', width: '100%', boxSizing: 'border-box', display: 'flex', justifyContent: 'center' }}>
                   <button
                     style={{
-                      marginTop: 24,
                       background: '#2563eb',
                       color: '#fff',
                       border: 'none',
@@ -1035,6 +1063,7 @@ useEffect(() => {
                   </button>
                 </div>
               </div>
+            </div>
             )}
           </div>
             <p className="sectionseats-info">Click a seat to book. Booked seats are shown in grey.</p>

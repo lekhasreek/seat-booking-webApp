@@ -87,8 +87,13 @@ const BookingModal = ({
         setError('Failed to edit booking: ' + err.message);
       }
     } else {
-      onBook({ seatLabel, date, timeslot: timeslotJSON });
-      onClose();
+      try {
+        // Wait for parent handler to finish (it performs the insert and state merge)
+        await onBook({ seatLabel, date, timeslot: timeslotJSON });
+        onClose();
+      } catch (err) {
+        setError('Failed to book: ' + (err?.message || err));
+      }
     }
   };
 
