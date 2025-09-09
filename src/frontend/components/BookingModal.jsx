@@ -78,36 +78,12 @@ const BookingModal = ({
       .map(ts => [ts.start, ts.end]);
     const timeslotJSON = { timeslot: formattedTimeslots };
     if (isEdit && bookingId) {
-      // Edit booking: merge newly entered timeslots with existing booking's timeslots
+      // Edit booking: replace the timeslot for the booking being edited
       try {
-        // bookingDetails may be passed in as prop (object or string)
-        let existingTimes = [];
-        if (bookingDetails?.Timeslot) {
-          if (typeof bookingDetails.Timeslot === 'string') {
-            try {
-              const parsed = JSON.parse(bookingDetails.Timeslot);
-              if (Array.isArray(parsed.timeslot)) existingTimes = parsed.timeslot;
-            } catch (e) {
-              // ignore parse error
-            }
-          } else if (typeof bookingDetails.Timeslot === 'object' && Array.isArray(bookingDetails.Timeslot.timeslot)) {
-            existingTimes = bookingDetails.Timeslot.timeslot;
-          }
-        }
-        // Merge and dedupe by start-end
-        const merged = [...existingTimes, ...formattedTimeslots];
-        const seen = new Set();
-        const deduped = [];
-        for (const [s, e] of merged) {
-          const key = `${s}-${e}`;
-          if (!seen.has(key)) {
-            seen.add(key);
-            deduped.push([s, e]);
-          }
-        }
-        const mergedJson = { timeslot: deduped };
+        const updatedJson = { timeslot: formattedTimeslots };
         await editBooking(bookingId, {
-          Timeslot: JSON.stringify(mergedJson),
+          Timeslot: JSON.stringify(updatedJson),
+          created_at: date, // Ensure correct format (YYYY-MM-DD)
         });
         onClose();
       } catch (err) {
