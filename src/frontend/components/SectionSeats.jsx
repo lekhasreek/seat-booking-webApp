@@ -34,7 +34,7 @@ const SeatOverlayContext = React.createContext({
 
 
 // Overlay for a single seat, with hover state for booked seats
-function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHoverBookingDetails = () => {}, setViewBookingDetails, bookedSeatsMap, selectedRange }) { // Added selectedRange for time filter
+function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHoverBookingDetails = () => {}, setViewBookingDetails, bookedSeatsMap, selectedRange, userRole, selectedSeatsForBooking, setSelectedSeatsForBooking }) { // Added selectedRange for time filter
   // Use lifted state for blue highlight
   const { activeSeat, selectedDateForActive, setActiveSeat } = React.useContext(SeatOverlayContext);
   // Correct the date comparison for isActive
@@ -118,17 +118,30 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
         transition: 'background 0.15s, border 0.15s',
       }}
       onClick={() => {
-        if (!isFullyBooked) {
-          setActiveSeat(overlay.id, selectedDate);
-          // If a time filter is applied, prefill the modal with that range
-          const hasAppliedRange = selectedRange?.checkIn && selectedRange?.checkOut;
-          const preRange = hasAppliedRange ? [selectedRange.checkIn, selectedRange.checkOut] : undefined;
-          setShowBooking({
-            seatId: overlay.id,
-            seatLabel: seatLabel,
-            date: selectedDate,
-            ...(hasAppliedRange ? { preselectedRange: preRange } : {}),
-          });
+        // If user is a lead, toggle multi-select for available seats
+        if (userRole === 'lead' && !isFullyBooked) {
+          const label = seatLabel;
+          if (selectedSeatsForBooking.includes(label)) {
+            setSelectedSeatsForBooking(prev => prev.filter(s => s !== label));
+            setActiveSeat(null, '');
+          } else {
+            setSelectedSeatsForBooking(prev => [...prev, label]);
+            setActiveSeat(overlay.id, selectedDate);
+          }
+          return;
+        }
+          if (!isFullyBooked) {
+          // Open modal after refreshing backend bookings to avoid overwriting existing slots
+          (async () => {
+            const hasAppliedRange = selectedRange?.checkIn && selectedRange?.checkOut;
+            const preRange = hasAppliedRange ? [selectedRange.checkIn, selectedRange.checkOut] : undefined;
+            await openBookingModal({
+              seatId: overlay.id,
+              seatLabel: seatLabel,
+              date: selectedDate,
+              ...(hasAppliedRange ? { preselectedRange: preRange } : {}),
+            });
+          })();
         } else {
           setViewBookingDetails({
             seatId: overlay.id,
@@ -248,6 +261,41 @@ async function fetchBooked() {
   }
 }
 
+  // Open booking modal after fetching latest bookings for the selected date.
+  // Ensures the modal and booking details always reflect backend state (all slots).
+  const openBookingModal = async (payload = {}) => {
+    if (!sectionId || !selectedDate) {
+      // Fallback to just opening modal
+      setShowBooking(payload);
+      return;
+    }
+    try {
+      const { bookings } = await getBookedSeatsBySectionAndDate(sectionId, selectedDate);
+      const newBookedSeatDataForDate = {};
+      bookings.forEach(booking => {
+        if (!newBookedSeatDataForDate[booking.Seat_Number]) {
+          newBookedSeatDataForDate[booking.Seat_Number] = {};
+        }
+        newBookedSeatDataForDate[booking.Seat_Number][booking.Timeslot] = booking;
+      });
+      // Update local map so modal sees the freshest state
+      setBookedSeatsMap(prev => ({ ...prev, [selectedDate]: newBookedSeatDataForDate }));
+
+      // If payload requested a specific bookingId, try to attach the bookingDetails
+      let bookingDetails = payload.bookingDetails;
+      if (!bookingDetails && payload.bookingId) {
+        bookingDetails = bookings.find(b => b.Booking_id === payload.bookingId);
+      }
+
+      setActiveSeat(payload.seatId || null, selectedDate);
+      setShowBooking({ ...payload, bookingDetails });
+    } catch (err) {
+      console.error('Failed to fetch bookings before opening modal', err);
+      // fallback: still open modal with whatever payload
+      setShowBooking(payload);
+    }
+  };
+
 useEffect(() => {
   // Fetch bookings for current section/date and set up real-time subscription
   fetchBooked();
@@ -335,8 +383,29 @@ useEffect(() => {
 }, [sectionId, selectedDate]);
 
   const [seats, setSeats] = useState([]);
+  const [userRole, setUserRole] = useState(null);
+  // Fetch role for current user (if available) so we can enable lead-only features
+  useEffect(() => {
+    if (!userId) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API_ENDPOINTS.USERS}/${userId}`);
+        if (!mounted) return;
+        if (res.ok) {
+          const body = await res.json();
+          setUserRole(body?.role || body?.Role || null);
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  }, [userId]);
 
   const [showBooking, setShowBooking] = useState(null);
+  // Multi-select for lead users
+  const [selectedSeatsForBooking, setSelectedSeatsForBooking] = useState([]); // array of seat labels (e.g., 'A1')
   // Store SVG text for inline rendering
   const [svgText, setSvgText] = useState(null);
 
@@ -676,7 +745,9 @@ useEffect(() => {
             </svg>
             {/* Render overlays for all Square-A* paths */}
             {squareOverlays.map(overlay => (
-              <SeatOverlay
+              <div key={overlay.id} style={{ position: 'relative' }}>
+                {/* For lead users allow multi-select by ctrl/cmd click - here we enable toggle on click when role is lead via userService or user metadata; fallback: allow always if userId present and multi-select not harmful */}
+                <SeatOverlay
                 key={overlay.id}
                 overlay={overlay}
                 // isBooked if there are any bookings for this seat on the selected date
@@ -687,8 +758,44 @@ useEffect(() => {
                 setViewBookingDetails={setViewBookingDetails} // Pass down
                 bookedSeatsMap={bookedSeatsMap} // Pass down
                 selectedRange={appliedRange}
+                userRole={userRole}
+                selectedSeatsForBooking={selectedSeatsForBooking}
+                setSelectedSeatsForBooking={setSelectedSeatsForBooking}
               />
+                {/* Small checkbox indicator for selected seats (lead multi-select) */}
+                {selectedSeatsForBooking.includes(overlay.id.replace(/^Square-/, '')) && (
+                  <div style={{ position: 'absolute', top: overlay.top - 10, left: overlay.left + overlay.width - 18, zIndex: 30 }}>
+                    <div style={{ width: 18, height: 18, borderRadius: 4, background: '#2563eb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800 }}>✓</div>
+                  </div>
+                )}
+              </div>
             ))}
+
+            {/* Multi-select controls - show only when there's at least one selection */}
+            {selectedSeatsForBooking.length > 0 && (
+              <div style={{ position: 'absolute', left: 16, bottom: 24, zIndex: 60, display: 'flex', gap: 8 }}>
+                <button
+                  onClick={async () => {
+                    // Open booking modal with multiple seats; refresh backend state first
+                    await openBookingModal({
+                      seatId: null,
+                      seatLabel: null,
+                      date: selectedDate,
+                      preselectedRange: null,
+                    });
+                  }}
+                  style={{ background: '#059669', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Book Selected ({selectedSeatsForBooking.length})
+                </button>
+                <button
+                  onClick={() => setSelectedSeatsForBooking([])}
+                  style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Clear
+                </button>
+              </div>
+            )}
 
             {/* Tooltip for hover on booked seat */}
             {/* Tooltip for hover on booked seat (refactored) */}
@@ -696,13 +803,14 @@ useEffect(() => {
 
             {/* Booking Form Modal (refactored) */}
             <BookingModal
-              isOpen={!!(showBooking && showBooking.seatId && (() => {
+              isOpen={!!(showBooking && (() => {
                 const now = new Date();
                 const todayStr = new Date().toISOString().split('T')[0];
                 if (selectedDate < todayStr) {
                   setShowBooking(null);
                   setActiveSeat(null, '');
                   setSelectedTimeSlots([]);
+                  setSelectedSeatsForBooking([]);
                   toast.error('Bookings cannot be done on past days');
                   return false;
                 }
@@ -712,6 +820,7 @@ useEffect(() => {
                 setShowBooking(null);
                 setActiveSeat(null, '');
                 setSelectedTimeSlots([]);
+                setSelectedSeatsForBooking([]);
                 fetchBooked();
               }}
               seatLabel={showBooking?.seatLabel}
@@ -721,6 +830,7 @@ useEffect(() => {
               bookingId={showBooking?.bookingId}
               isEdit={showBooking?.isEdit}
               bookingDetails={showBooking?.bookingDetails}
+              selectedSeats={selectedSeatsForBooking}
               onTimeSlotChange={(slot, checked, isBooked) => {
                 if (isBooked) return;
                 if (checked) {
@@ -731,14 +841,45 @@ useEffect(() => {
               }}
               onBook={async (bookingData) => {
                 try {
-                  const currentSeatLabel = showBooking?.seatId?.replace(/^Square-/, '');
                   const todayStr = new Date().toISOString().split('T')[0];
-                  if (
-                    showBooking &&
-                    showBooking.seatId &&
-                    selectedDate === todayStr &&
-                    bookingData.timeslot?.timeslot?.length > 0
-                  ) {
+                  if (selectedDate !== todayStr || !(bookingData.timeslot?.timeslot?.length > 0)) {
+                    toast.error('Bookings should be made for today only and timeslot must be valid.');
+                    return;
+                  }
+
+                  // Multi-seat booking when there are selectedSeatsForBooking and no single seat in showBooking
+                  if ((!showBooking || !showBooking.seatId) && selectedSeatsForBooking.length > 0) {
+                    // Fetch seat UUIDs once
+                    let allSeats = null;
+                    try {
+                      const res = await fetch(API_ENDPOINTS.SEATS);
+                      allSeats = await res.json();
+                    } catch (err) {
+                      toast.error('Failed to fetch seats: ' + err.message);
+                      return;
+                    }
+                    for (const seatLabel of selectedSeatsForBooking) {
+                      const match = allSeats.seats.find(s => s.Seat_Number === seatLabel);
+                      if (!match) {
+                        toast.error('Seat UUID not found for ' + seatLabel);
+                        continue;
+                      }
+                      try {
+                        await insertBooking({
+                          created_at: selectedDate,
+                          Seat_id: match.Seat_id,
+                          Timeslot: JSON.stringify({ timeslot: bookingData.timeslot.timeslot }),
+                          User_id: userId,
+                        });
+                      } catch (err) {
+                        toast.error('Failed to book ' + seatLabel + ': ' + err.message);
+                      }
+                    }
+                    toast.success('Selected seats booked');
+                    setSelectedSeatsForBooking([]);
+                  } else if (showBooking && showBooking.seatId) {
+                    // Existing single-seat behavior
+                    const currentSeatLabel = showBooking?.seatId?.replace(/^Square-/, '');
                     let seatUUID = null;
                     try {
                       const res = await fetch(API_ENDPOINTS.SEATS);
@@ -845,10 +986,38 @@ useEffect(() => {
                   return;
                 }
                 try {
-                  await deleteBooking(bookingDetails.Booking_id);
-                  toast.success('Booking cancelled.');
+                  // Parse timeslot array
+                  let timeslotArr = [];
+                  if (bookingDetails.Timeslot) {
+                    if (typeof bookingDetails.Timeslot === 'string') {
+                      try {
+                        const parsed = JSON.parse(bookingDetails.Timeslot);
+                        if (Array.isArray(parsed.timeslot)) {
+                          timeslotArr = parsed.timeslot;
+                        }
+                      } catch (e) {}
+                    } else if (typeof bookingDetails.Timeslot === 'object' && Array.isArray(bookingDetails.Timeslot.timeslot)) {
+                      timeslotArr = bookingDetails.Timeslot.timeslot;
+                    }
+                  }
+                  // Remove the selected timeslot
+                  const toDelete = selectedTimeSlots[0];
+                  timeslotArr = timeslotArr.filter(([start, end]) => !(start === toDelete[0] && end === toDelete[1]));
+                  // Always send the full updated array when editing
+                  if (timeslotArr.length === 0) {
+                    await deleteBooking(bookingDetails.Booking_id);
+                    toast.success('Booking cancelled.');
+                  } else {
+                    const timeslotJson = JSON.stringify({ timeslot: timeslotArr });
+                    await editBooking(bookingDetails.Booking_id, {
+                      Seat_id: bookingDetails.Seat_id,
+                      Timeslot: timeslotJson,
+                      User_id: userId,
+                      created_at: selectedDate,
+                    });
+                    toast.success('Timeslot removed from booking.');
+                  }
                   setShowBooking(null);
-                  // Immediately refresh booking data
                   fetchBooked();
                 } catch (err) {
                   toast.error('Failed to cancel booking: ' + err.message);

@@ -7,6 +7,7 @@ const BookingModal = ({
   isOpen,
   onClose,
   seatLabel,
+  selectedSeats, // optional array of seat labels for multi-seat booking
   onBook,
   preselectedRange,
   bookingId,
@@ -77,10 +78,36 @@ const BookingModal = ({
       .map(ts => [ts.start, ts.end]);
     const timeslotJSON = { timeslot: formattedTimeslots };
     if (isEdit && bookingId) {
-      // Edit booking
+      // Edit booking: merge newly entered timeslots with existing booking's timeslots
       try {
+        // bookingDetails may be passed in as prop (object or string)
+        let existingTimes = [];
+        if (bookingDetails?.Timeslot) {
+          if (typeof bookingDetails.Timeslot === 'string') {
+            try {
+              const parsed = JSON.parse(bookingDetails.Timeslot);
+              if (Array.isArray(parsed.timeslot)) existingTimes = parsed.timeslot;
+            } catch (e) {
+              // ignore parse error
+            }
+          } else if (typeof bookingDetails.Timeslot === 'object' && Array.isArray(bookingDetails.Timeslot.timeslot)) {
+            existingTimes = bookingDetails.Timeslot.timeslot;
+          }
+        }
+        // Merge and dedupe by start-end
+        const merged = [...existingTimes, ...formattedTimeslots];
+        const seen = new Set();
+        const deduped = [];
+        for (const [s, e] of merged) {
+          const key = `${s}-${e}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            deduped.push([s, e]);
+          }
+        }
+        const mergedJson = { timeslot: deduped };
         await editBooking(bookingId, {
-          Timeslot: timeslotJSON,
+          Timeslot: JSON.stringify(mergedJson),
         });
         onClose();
       } catch (err) {
@@ -111,7 +138,21 @@ const BookingModal = ({
       border: '1.5px solid #2563eb33',
       gap: 0,
     }}>
-      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 18, letterSpacing: 0.2, color: '#2563eb' }}>Book Seat {seatLabel}</div>
+      <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 18, letterSpacing: 0.2, color: '#2563eb' }}>
+        {selectedSeats && selectedSeats.length > 1
+          ? `Book Seats ${selectedSeats.join(', ')}`
+          : `Book Seat ${seatLabel}`}
+      </div>
+      {/* Show selected seats summary when provided */}
+      {selectedSeats && selectedSeats.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 12 }}>
+          {selectedSeats.map(s => (
+            <div key={s} style={{ background: '#eef2ff', color: '#1e40af', padding: '6px 10px', borderRadius: 9999, fontWeight: 700, fontSize: 14 }}>
+              {s}
+            </div>
+          ))}
+        </div>
+      )}
       {error && (
         <div style={{ color: 'white', background: '#e11d48', padding: '10px 16px', borderRadius: '6px', marginBottom: '18px', textAlign: 'center', fontWeight: 600, fontSize: 16 }}>
           {error}
