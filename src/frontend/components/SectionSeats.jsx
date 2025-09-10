@@ -118,16 +118,39 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
         transition: 'background 0.15s, border 0.15s',
       }}
       onClick={() => {
-        if (isAvailable && typeof openBookingModal === 'function') {
-          // Always open booking modal for available seats
+        // Lead users: toggle multi-select for available seats
+        if (userRole === 'lead' && isAvailable) {
+          const label = seatLabel;
+          const selections = Array.isArray(selectedSeatsForBooking) ? selectedSeatsForBooking : [];
+          if (selections.includes(label)) {
+            if (typeof setSelectedSeatsForBooking === 'function') setSelectedSeatsForBooking(prev => (Array.isArray(prev) ? prev.filter(s => s !== label) : []));
+            setActiveSeat(null, '');
+          } else {
+            if (typeof setSelectedSeatsForBooking === 'function') setSelectedSeatsForBooking(prev => ([...(Array.isArray(prev) ? prev : []), label]));
+            setActiveSeat(overlay.id, selectedDate);
+          }
+          return;
+        }
+
+        // Non-lead users: open modal for available seats, else view booking details
+        if (isAvailable) {
           const hasAppliedRange = selectedRange?.checkIn && selectedRange?.checkOut;
           const preRange = hasAppliedRange ? [selectedRange.checkIn, selectedRange.checkOut] : undefined;
-          openBookingModal({
-            seatId: overlay.id,
-            seatLabel: seatLabel,
-            date: selectedDate,
-            ...(hasAppliedRange ? { preselectedRange: preRange } : {}),
-          });
+          if (typeof openBookingModal === 'function') {
+            openBookingModal({
+              seatId: overlay.id,
+              seatLabel: seatLabel,
+              date: selectedDate,
+              ...(hasAppliedRange ? { preselectedRange: preRange } : {}),
+            });
+          } else {
+            setShowBooking({
+              seatId: overlay.id,
+              seatLabel: seatLabel,
+              date: selectedDate,
+              ...(hasAppliedRange ? { preselectedRange: preRange } : {}),
+            });
+          }
         } else {
           setViewBookingDetails({
             seatId: overlay.id,
@@ -400,7 +423,8 @@ useEffect(() => {
         if (!mounted) return;
         if (res.ok) {
           const body = await res.json();
-          setUserRole(body?.role || body?.Role || null);
+          const rawRole = body?.role || body?.Role || null;
+          setUserRole(rawRole ? String(rawRole).toLowerCase() : null);
         }
       } catch (e) {
         // ignore
