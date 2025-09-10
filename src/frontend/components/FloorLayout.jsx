@@ -23,7 +23,7 @@ const TOTAL_SEATS = {
 
 const FloorLayout = () => {
   const navigate = useNavigate();
-  const [hoveredSection, setHoveredSection] = useState(null);
+  // hoveredSection and hover tooltip removed per UX request
   const [availableBySection, setAvailableBySection] = useState({});
 
   useEffect(() => {
@@ -114,31 +114,10 @@ const FloorLayout = () => {
                     navigate(`/section/${section.id}`);
                   }
                 }}
-                onMouseEnter={e => setHoveredSection(section.id)}
-                onMouseLeave={e => setHoveredSection(null)}
+                // hover tooltip removed
               >
                 <div className="w-full h-full" />
-                {hoveredSection === section.id && (
-                  <div style={{
-                    position: 'absolute',
-                    left: '50%',
-                    top: '100%',
-                    transform: 'translate(-50%, 10px)',
-                    background: '#fff',
-                    border: '1px solid #2563eb',
-                    borderRadius: 8,
-                    padding: 12,
-                    minWidth: 160,
-                    boxShadow: '0 2px 12px #0002',
-                    zIndex: 1000,
-                    fontSize: 15,
-                  }}>
-                    <div style={{ fontWeight: 600, color: '#2563eb', marginBottom: 4 }}>Available seats:</div>
-                    <div>Morning: {available.morning}</div>
-                    <div>Afternoon: {available.afternoon}</div>
-                    <div>Evening: {available.evening}</div>
-                  </div>
-                )}
+                {/* Hover tooltip removed */}
               </div>
             );
           })}
