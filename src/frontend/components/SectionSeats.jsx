@@ -7,6 +7,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Header from "./Header.jsx";
 import { API_ENDPOINTS } from '../config/api.js';
 import { useRealtime } from '../contexts/RealtimeContext.jsx';
+import Minimap from './Minimap';
 
 import './SectionSeats.css';
 
@@ -1266,6 +1267,9 @@ useEffect(() => {
             )}
           </div>
             <p className="sectionseats-info">Click a seat to book. Booked seats are shown in grey.</p>
+          </div>
+          <div className="minimap-wrapper">
+          <Minimap currentWorkspace={sectionId} />
         </div>
       </div>
     </div>
