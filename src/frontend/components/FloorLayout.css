@@ -2,35 +2,150 @@
   display: flex;
   min-height: 100vh;
   background: #f7fafd;
+  padding: 20px 0;
 }
 .floor-layout-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 24px;
-  margin-left: 0;
+  padding: 0 16px;
+  margin: 0 auto;
+  max-width: 1400px;
+  width: 100%;
+  justify-content: flex-start;
 }
 .floor-layout-title {
-  margin-top: 120px;
+  margin: 0;
+  padding: 80px 0 0 0;
   font-weight: bold;
   letter-spacing: 0.5px;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 .floor-layout-svg-wrapper {
   position: relative;
   width: 100%;
-  max-width: 1200px;
+  max-width: 800px;
+  margin: 60px auto;
+  flex-shrink: 1;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+#floor-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0;
+  padding: 0;
 }
 .floor-layout-section {
   position: absolute;
   background: rgba(0,0,0,0);
   z-index: 10;
 }
+.floor-layout-section.section-A { left: 2.4%; top: 9%; width: 15%; height: 34%; }
+.floor-layout-section.section-B { left: 26.5%; top: 30.5%; width: 12%; height: 13%; }
+.floor-layout-section.section-C { left: 65.25%; top: 16%; width: 12%; height: 25%; }
+.floor-layout-section.section-D { left: 85.5%; top: 9.3%; width: 6%; height: 34%; }
+.floor-layout-section.section-E { left: 13.5%; top: 58.5%; width: 8.5%; height: 31%; }
+.floor-layout-section.section-F { left: 31.69%; top: 58.5%; width: 9%; height: 31%; }
+.floor-layout-section.section-G { left: 67.85%; top: 58.5%; width: 15.5%; height: 31%; }
 .floor-layout-section .w-full.h-full {
   width: 100%;
   height: 100%;
 }
 .floor-layout-instruction {
-  margin-top: 24px;
+  margin: 0;
+  padding: 0 16px 80px;
   color: #6b7280;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* SVG styles are now defined with the wrapper */
+
+/* Large Desktop Screens (1920x1080 and above) */
+@media (min-width: 1600px) {
+  .floor-layout-heading {
+    margin: 40px 0 30px;
+  }
+  
+  .floor-layout-title {
+    font-size: 2.5rem;
+    margin: 0;
+  }
+  
+  .floor-layout-svg-wrapper {
+    max-width: 1200px;
+    margin: 60px auto;
+    transform: scale(1.2);
+    transform-origin: center top;
+  }
+  
+  .floor-layout-instruction {
+    font-size: 1.25rem;
+    margin: 60px 0 40px;
+    padding: 0 16px;
+  }
+}
+
+/* Responsive spacing adjustments */
+@media (max-width: 1024px) {
+  .floor-layout-container {
+    padding: 16px 0;
+  }
+  .floor-layout-title {
+    padding: 40px 0 0 0;
+    font-size: 28px;
+  }
+  .floor-layout-svg-wrapper {
+    margin: 40px auto;
+    max-width: 700px;
+  }
+  .floor-layout-instruction {
+    padding: 0 16px 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .floor-layout-main {
+    padding: 0 12px;
+  }
+  .floor-layout-title {
+    padding: 30px 0 0 0;
+    font-size: 24px;
+  }
+  .floor-layout-svg-wrapper {
+    margin: 30px auto;
+    max-width: 600px;
+  }
+  .floor-layout-instruction {
+    padding: 0 12px 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .floor-layout-container {
+    padding: 8px 0;
+  }
+  .floor-layout-title {
+    padding: 20px 0 0 0;
+    font-size: 20px;
+  }
+  .floor-layout-svg-wrapper {
+    margin: 20px auto;
+    max-width: 100%;
+    padding: 0 8px;
+  }
+  .floor-layout-instruction {
+    padding: 0 8px 20px;
+    font-size: 14px;
+  }
 }

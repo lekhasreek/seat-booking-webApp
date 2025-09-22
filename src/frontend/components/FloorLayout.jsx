@@ -57,8 +57,8 @@ const FloorLayout = () => {
     <div className="floor-layout-container">
       <div className="floor-layout-main">
         <Header />
-        <div className="w-full flex justify-center">
-          <h1 className="text-3xl font-bold mb-8 text-gray-800 floor-layout-title">
+        <div className="w-full flex justify-center floor-layout-heading">
+          <h1 className="text-3xl font-bold text-gray-800 floor-layout-title">
             Workspace Floor Layout
           </h1>
         </div>
@@ -73,38 +73,12 @@ const FloorLayout = () => {
           />
           {/* Overlay clickable areas */}
           {sectionAreas.map((section) => {
-            let style = {};
-            switch (section.id) {
-              case "A":
-                style = { left: "1.5%", top: "22%", width: "15%", height: "19%" };
-                break;
-              case "B":
-                style = { left: "27.5%", top: "22%", width: "16%", height: "19%" };
-                break;
-              case "C":
-                style = { left: "64.5%", top: "22%", width: "13.5%", height: "19%" };
-                break;
-              case "D":
-                style = { left: "85.5%", top: "22%", width: "13%", height: "19%" };
-                break;
-              case "E":
-                style = { left: "14.5%", top: "58.5%", width: "13.5%", height: "19%" };
-                break;
-              case "F":
-                style = { left: "36.5%", top: "58.5%", width: "11.5%", height: "19%" };
-                break;
-              case "G":
-                style = { left: "68.5%", top: "58.5%", width: "16%", height: "19%" };
-                break;
-              default:
-                break;
-            }
+            const sectionClass = `section-${section.id}`;
             const available = availableBySection[section.id] || { morning: '-', afternoon: '-', evening: '-' };
             return (
               <div
                 key={section.id}
-                className="floor-layout-section group cursor-pointer"
-                style={style}
+                className={`floor-layout-section ${sectionClass} group cursor-pointer`}
                 aria-label={section.label}
                 onClick={() => navigate(`/section/${section.id}`)}
                 tabIndex={0}
@@ -114,10 +88,8 @@ const FloorLayout = () => {
                     navigate(`/section/${section.id}`);
                   }
                 }}
-                // hover tooltip removed
               >
                 <div className="w-full h-full" />
-                {/* Hover tooltip removed */}
               </div>
             );
           })}
