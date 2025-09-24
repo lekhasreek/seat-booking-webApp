@@ -1,0 +1,151 @@
+.minimap-wrapper {
+  position: absolute;
+  top: 90px;
+  right: 15px;
+  width: 30%; /* Adjusted to occupy the right side */
+  height: 100%;
+  overflow: hidden;
+}
+
+.minimap-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.minimap-image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.minimap-overlay {
+  position: absolute;
+  inset: 0; /* top:0; right:0; bottom:0; left:0 */
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* clicks go through */
+}
+
+.workspace-highlight {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: rgb(222, 36, 36);
+  pointer-events: none;
+}
+
+/* overlay shapes are invisible by default (no fill/stroke) */
+.overlay-shape {
+  fill: none;
+  stroke: none;
+  stroke-width: 2;
+}
+
+/* active workspace: visual indicator moved to animated pin; keep overlay shapes invisible */
+.overlay-shape.active {
+  stroke: none;
+  fill: none;
+}
+
+/* absolute pixel pin used for robust positioning */
+.minimap-pin {
+  width: 32px;
+  height: 40px; /* taller to accommodate the tail */
+  transform: translate(-50%, -70%); /* lowered further so the tip sits closer to the workspace center */
+  pointer-events: none;
+  display: inline-block;
+  position: absolute;
+  z-index: 30;
+}
+.minimap-pin .pin-ring {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  width: 32px;
+  height: 32px;
+  margin-left: -16px;
+  margin-top: -16px;
+  border-radius: 50%;
+  border: 2px solid rgba(34,197,94,0.22);
+  box-sizing: border-box;
+  animation: ring-pulse 1.6s infinite;
+}
+.minimap-pin .pin-core {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
+  background: radial-gradient(circle at 35% 30%, #fff, transparent 30%), #22C55E;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  animation: pin-bob 900ms ease-in-out infinite;
+}
+
+/* small pointed tail below the core */
+.minimap-pin .pin-core::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 0;
+  height: 0;
+  margin-left: -6px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 10px solid #22C55E; /* the pointer/tip */
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.06));
+}
+
+@keyframes pin-bob {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+  100% { transform: translateY(0); }
+}
+
+/* styling for the inline SVG pin group */
+.svg-pin {
+  pointer-events: none;
+}
+
+.svg-pin circle {
+  transition: transform 120ms ease;
+}
+
+.svg-pin:hover circle {
+  transform: scale(1.08);
+}
+
+/* animated marker */
+.svg-pin-marker {
+  pointer-events: none;
+}
+.svg-pin-marker .pin-outer {
+  transform-origin: center bottom;
+  animation: pin-bounce 900ms ease-in-out infinite;
+}
+.svg-pin-marker .pin-ring {
+  transform-origin: center center;
+  animation: ring-pulse 1500ms ease-out infinite;
+}
+
+@keyframes pin-bounce {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes ring-pulse {
+  0% { transform: scale(0.6); opacity: 0.3 }
+  70% { transform: scale(1.6); opacity: 0.05 }
+  100% { transform: scale(1.8); opacity: 0 }
+}
+
+/* white cover rectangle for hiding the entry icon */
+.minimap-overlay rect[fill="#FFFFFF"] {
+  fill: #fff;
+}
