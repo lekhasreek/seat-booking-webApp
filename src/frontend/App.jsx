@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import FloorLayout from "./components/FloorLayout";
 import SectionSeats from "./components/SectionSeats";
+import ChoicePage from "./components/ChoicePage";
+import ParkingBooking from "./components/ParkingBooking";
 import Login from "./components/Login";
 import Signup from "./components/Signup";
 import { ToastContainer, toast } from 'react-toastify';
@@ -131,9 +133,13 @@ const App = () => {
       <RealtimeProvider>
         <Router>
           <Routes>
-            {/* Pass the userId prop to FloorLayout and SectionSeats */}
-            <Route path="/" element={<FloorLayout userId={userId} />} />
-            <Route path="/section/:sectionId" element={<SectionSeats userId={userId} />} />
+            {/* Default route shows choice page */}
+            <Route path="/" element={<ChoicePage />} />
+            {/* Seat booking routes */}
+            <Route path="/seat-booking" element={<FloorLayout userId={userId} />} />
+            <Route path="/seat-booking/section/:sectionId" element={<SectionSeats userId={userId} />} />
+            {/* Parking booking route */}
+            <Route path="/parking-booking" element={<ParkingBooking userId={userId} />} />
             {/* Redirect any unmatched routes to the home page */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

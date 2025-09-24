@@ -714,6 +714,19 @@ useEffect(() => {
           {/* Scrollable Section View Only */}
           <div className="sectionseats-content">
 
+          {/* Back button to floor layout */}
+          <div className="w-full flex justify-between items-center px-4 py-2">
+            <button
+              onClick={() => navigate('/seat-booking')}
+              className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Floor Layout
+            </button>
+          </div>
+
           {/* CalendarBar controls the selected date for booking */}
           <CalendarBar
             daysToShow={7}

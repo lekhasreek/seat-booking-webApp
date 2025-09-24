@@ -1,0 +1,310 @@
+/* ChoicePage.css */
+.choice-page-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.choice-page-content {
+  max-width: 1200px;
+  width: 100%;
+}
+
+.choice-page-header {
+  text-align: center;
+  margin-bottom: 4rem;
+  animation: slideInUp 0.8s ease-out;
+}
+
+.choice-page-title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 1rem;
+  text-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  letter-spacing: -0.025em;
+}
+
+.choice-page-subtitle {
+  font-size: 1.5rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 400;
+  margin-bottom: 0;
+}
+
+.choice-cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 2.5rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.choice-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 24px;
+  padding: 3rem 2rem;
+  cursor: pointer;
+  transform: translateY(0);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 10px 25px rgba(0, 0, 0, 0.1),
+    0 20px 48px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+  animation: slideInUp 0.8s ease-out;
+}
+
+.choice-card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.choice-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.choice-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.15),
+    0 30px 60px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.choice-card:hover::before {
+  opacity: 1;
+}
+
+.choice-card:active {
+  transform: translateY(-4px) scale(1.01);
+}
+
+.card-content {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.card-icon-container {
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.card-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-icon-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: inherit;
+  opacity: 0.1;
+  border-radius: 50%;
+}
+
+.office-seat-icon {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.parking-slot-icon {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.card-icon {
+  width: 40px;
+  height: 40px;
+  color: white;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.3s ease;
+}
+
+.choice-card:hover .card-icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.card-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1rem;
+  transition: color 0.3s ease;
+}
+
+.card-description {
+  color: #6b7280;
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.card-cta {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.office-seat-cta {
+  color: #3b82f6;
+}
+
+.parking-slot-cta {
+  color: #10b981;
+}
+
+.cta-arrow {
+  width: 20px;
+  height: 20px;
+  margin-left: 0.5rem;
+  transition: transform 0.3s ease;
+}
+
+.choice-card:hover .cta-arrow {
+  transform: translateX(4px);
+}
+
+.choice-page-footer {
+  text-align: center;
+  margin-top: 3rem;
+  animation: slideInUp 0.8s ease-out 0.4s both;
+}
+
+.footer-text {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+}
+
+/* Animations */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .choice-page-container {
+    padding: 1rem;
+  }
+  
+  .choice-page-title {
+    font-size: 2.5rem;
+  }
+  
+  .choice-page-subtitle {
+    font-size: 1.2rem;
+  }
+  
+  .choice-cards-container {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .choice-card {
+    padding: 2rem 1.5rem;
+  }
+  
+  .card-title {
+    font-size: 1.75rem;
+  }
+  
+  .card-description {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .choice-page-title {
+    font-size: 2rem;
+  }
+  
+  .choice-page-subtitle {
+    font-size: 1.1rem;
+  }
+  
+  .card-icon-wrapper {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .card-icon {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .card-title {
+    font-size: 1.5rem;
+  }
+}
+
+/* Add a subtle pattern overlay */
+.choice-page-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* Loading state for smooth transitions */
+.choice-card {
+  animation-fill-mode: both;
+}
+
+/* Focus states for accessibility */
+.choice-card:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 4px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .choice-page-container {
+    background: #1f2937;
+  }
+  
+  .choice-card {
+    border: 2px solid #374151;
+  }
+}

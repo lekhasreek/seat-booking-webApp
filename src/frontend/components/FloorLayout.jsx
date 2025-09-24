@@ -57,6 +57,18 @@ const FloorLayout = () => {
     <div className="floor-layout-container">
       <div className="floor-layout-main">
         <Header />
+        {/* Back button to choice page */}
+        <div className="w-full flex justify-between items-center px-4 py-2">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Dashboard
+          </button>
+        </div>
         <div className="w-full flex justify-center floor-layout-heading">
           <h1 className="text-3xl font-bold text-gray-800 floor-layout-title">
             Workspace Floor Layout
@@ -80,12 +92,12 @@ const FloorLayout = () => {
                 key={section.id}
                 className={`floor-layout-section ${sectionClass} group cursor-pointer`}
                 aria-label={section.label}
-                onClick={() => navigate(`/section/${section.id}`)}
+                onClick={() => navigate(`/seat-booking/section/${section.id}`)}
                 tabIndex={0}
                 role="button"
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') {
-                    navigate(`/section/${section.id}`);
+                    navigate(`/seat-booking/section/${section.id}`);
                   }
                 }}
               >
