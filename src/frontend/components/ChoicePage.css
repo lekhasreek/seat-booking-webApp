@@ -1,62 +1,84 @@
 /* ChoicePage.css */
 .choice-page-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 2rem;
+  padding: 3rem 2rem 2rem 2rem;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
 }
 
 .choice-page-content {
   max-width: 1200px;
   width: 100%;
+  padding-top: 2rem;
 }
 
 .choice-page-header {
   text-align: center;
-  margin-bottom: 4rem;
+  margin-bottom: 3rem;
   animation: slideInUp 0.8s ease-out;
 }
 
-.choice-page-title {
-  font-size: 3.5rem;
+.welcome-title {
+  font-size: 3rem;
   font-weight: 700;
-  color: white;
   margin-bottom: 1rem;
-  text-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   letter-spacing: -0.025em;
+  color: #1f2937;
+}
+
+.c-text {
+  color: rgb(237, 24, 84); /* Updated pink color */
+}
+
+.prime-text {
+  color: #000000; /* Black color for "prime" */
 }
 
 .choice-page-subtitle {
   font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: #6b7280;
   font-weight: 400;
   margin-bottom: 0;
 }
 
+/* Small Cprime Logo - Bottom Right */
+.cprime-logo {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  font-size: 1.69rem;
+  font-weight: 900;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+.cprime-logo:hover {
+  opacity: 1;
+}
+
 .choice-cards-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 2.5rem;
-  max-width: 800px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  max-width: 700px;
   margin: 0 auto;
 }
 
 .choice-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 24px;
-  padding: 3rem 2rem;
+  background: white;
+  border-radius: 16px;
+  padding: 2rem 1.5rem;
   cursor: pointer;
   transform: translateY(0);
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid #e5e7eb;
   box-shadow: 
-    0 10px 25px rgba(0, 0, 0, 0.1),
-    0 20px 48px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 4px 6px rgba(0, 0, 0, 0.07),
+    0 10px 15px rgba(0, 0, 0, 0.1);
   position: relative;
   overflow: hidden;
   animation: slideInUp 0.8s ease-out;
@@ -73,7 +95,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  background: linear-gradient(135deg, rgba(233, 30, 99, 0.05), rgba(0, 188, 212, 0.05));
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -81,9 +103,8 @@
 .choice-card:hover {
   transform: translateY(-8px) scale(1.02);
   box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.15),
-    0 30px 60px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 10px 25px rgba(0, 0, 0, 0.15),
+    0 20px 40px rgba(0, 0, 0, 0.1);
 }
 
 .choice-card:hover::before {
@@ -101,13 +122,13 @@
 }
 
 .card-icon-container {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   position: relative;
 }
 
 .card-icon-wrapper {
-  width: 80px;
-  height: 80px;
+  width: 60px;
+  height: 60px;
   margin: 0 auto;
   border-radius: 50%;
   display: flex;
@@ -139,8 +160,8 @@
 }
 
 .card-icon {
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   color: white;
   position: relative;
   z-index: 1;
@@ -152,18 +173,11 @@
 }
 
 .card-title {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #1f2937;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   transition: color 0.3s ease;
-}
-
-.card-description {
-  color: #6b7280;
-  margin-bottom: 2rem;
-  font-size: 1.1rem;
-  line-height: 1.6;
 }
 
 .card-cta {
@@ -201,7 +215,7 @@
 }
 
 .footer-text {
-  color: rgba(255, 255, 255, 0.8);
+  color: #6b7280;
   font-size: 1rem;
 }
 
@@ -220,10 +234,14 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .choice-page-container {
-    padding: 1rem;
+    padding: 2rem 1rem 1rem 1rem;
   }
   
-  .choice-page-title {
+  .choice-page-content {
+    padding-top: 1rem;
+  }
+  
+  .welcome-title {
     font-size: 2.5rem;
   }
   
@@ -237,20 +255,22 @@
   }
   
   .choice-card {
-    padding: 2rem 1.5rem;
+    padding: 1.5rem 1rem;
   }
   
   .card-title {
-    font-size: 1.75rem;
+    font-size: 1.25rem;
   }
   
-  .card-description {
+  .cprime-logo {
+    bottom: 1rem;
+    right: 1rem;
     font-size: 1rem;
   }
 }
 
 @media (max-width: 480px) {
-  .choice-page-title {
+  .welcome-title {
     font-size: 2rem;
   }
   
@@ -259,49 +279,34 @@
   }
   
   .card-icon-wrapper {
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
   }
   
   .card-icon {
-    width: 30px;
-    height: 30px;
+    width: 25px;
+    height: 25px;
   }
   
   .card-title {
-    font-size: 1.5rem;
+    font-size: 1.125rem;
   }
-}
-
-/* Add a subtle pattern overlay */
-.choice-page-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: 
-    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-  pointer-events: none;
-}
-
-/* Loading state for smooth transitions */
-.choice-card {
-  animation-fill-mode: both;
+  
+  .cprime-logo {
+    font-size: 0.875rem;
+  }
 }
 
 /* Focus states for accessibility */
 .choice-card:focus {
-  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline: 2px solid #e91e63;
   outline-offset: 4px;
 }
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
   .choice-page-container {
-    background: #1f2937;
+    background: white;
   }
   
   .choice-card {

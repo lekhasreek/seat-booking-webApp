@@ -10,7 +10,7 @@ const ChoicePage = () => {
       <div className="choice-page-content">
         {/* Header */}
         <div className="choice-page-header">
-          <h1 className="choice-page-title">Welcome to Cprime</h1>
+          <h1 className="welcome-title">Welcome to ReserveNow</h1>
           <p className="choice-page-subtitle">Choose what you'd like to book today</p>
         </div>
 
@@ -48,9 +48,6 @@ const ChoicePage = () => {
                 </div>
               </div>
               <h3 className="card-title">Book an Office Seat</h3>
-              <p className="card-description">
-                Reserve your workspace for the day. Choose from available desks across different sections and time slots.
-              </p>
               <div className="card-cta office-seat-cta">
                 <span>Get Started</span>
                 <svg className="cta-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,9 +89,6 @@ const ChoicePage = () => {
                 </div>
               </div>
               <h3 className="card-title">Book a Parking Slot</h3>
-              <p className="card-description">
-                Reserve a parking space for your vehicle. Available slots for both two-wheelers and four-wheelers with real-time availability.
-              </p>
               <div className="card-cta parking-slot-cta">
                 <span>Get Started</span>
                 <svg className="cta-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,8 +101,12 @@ const ChoicePage = () => {
 
         {/* Footer */}
         <div className="choice-page-footer">
-          <p className="footer-text">Need help? Contact the office administrator</p>
         </div>
+      </div>
+
+      {/* Small Cprime Logo - Bottom Right */}
+      <div className="cprime-logo">
+        <span className="c-text">c</span><span className="prime-text">prime</span>
       </div>
     </div>
   );
