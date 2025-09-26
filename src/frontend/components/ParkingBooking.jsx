@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import './ParkingBooking.css';
+import { useNavigate } from 'react-router-dom';
+import userAvatar from '/user-blue.png';
+import cprimeLogo from '/cprime-logo.png';
+import UserPopover from './UserPopover';
 
 const ParkingBooking = ({ userId }) => {
   const navigate = useNavigate();
-  
   // State management
   const [twoWheelerSlots, setTwoWheelerSlots] = useState([]);
   const [fourWheelerSlots, setFourWheelerSlots] = useState([]);
@@ -31,6 +33,30 @@ const ParkingBooking = ({ userId }) => {
     setTimeout(() => setShowToast(false), 3000);
   };
 
+  const resolveSlotLabel = (slot) => {
+    if (!slot) return '';
+    return String(slot.display_label ?? slot.slot_code ?? slot.code ?? slot.name ?? slot.id ?? '');
+  };
+
+  const getSlotOrderIndex = (slot) => {
+    const label = resolveSlotLabel(slot);
+    const match = label.match(/\d+/);
+    return match ? parseInt(match[0], 10) : Number.MAX_SAFE_INTEGER;
+  };
+
+  const sortSlots = (slots) => {
+    return [...slots].sort((a, b) => {
+      const orderDiff = getSlotOrderIndex(a) - getSlotOrderIndex(b);
+      if (orderDiff !== 0) {
+        return orderDiff;
+      }
+
+      const labelA = resolveSlotLabel(a);
+      const labelB = resolveSlotLabel(b);
+      return labelA.localeCompare(labelB, undefined, { numeric: true, sensitivity: 'base' });
+    });
+  };
+
   // Fetch parking slots from Supabase
   const fetchParkingSlots = async () => {
     try {
@@ -52,8 +78,8 @@ const ParkingBooking = ({ userId }) => {
         vacate_time: slot.vacate_time ? new Date(slot.vacate_time) : null
       }));
 
-      setTwoWheelerSlots(processSlots(twoWheelers));
-      setFourWheelerSlots(processSlots(fourWheelers));
+      setTwoWheelerSlots(sortSlots(processSlots(twoWheelers)));
+      setFourWheelerSlots(sortSlots(processSlots(fourWheelers)));
     } catch (error) {
       console.error('Error fetching parking slots:', error);
       showNotification('Error loading parking slots');
@@ -78,13 +104,15 @@ const ParkingBooking = ({ userId }) => {
 
           // Update the appropriate slots array
           if (updatedSlot.vehicle_type === 'two') {
-            setTwoWheelerSlots(prev => 
-              prev.map(slot => slot.id === updatedSlot.id ? updatedSlot : slot)
-            );
+            setTwoWheelerSlots(prev => {
+              const updated = prev.map(slot => slot.id === updatedSlot.id ? updatedSlot : slot);
+              return sortSlots(updated);
+            });
           } else {
-            setFourWheelerSlots(prev => 
-              prev.map(slot => slot.id === updatedSlot.id ? updatedSlot : slot)
-            );
+            setFourWheelerSlots(prev => {
+              const updated = prev.map(slot => slot.id === updatedSlot.id ? updatedSlot : slot);
+              return sortSlots(updated);
+            });
           }
         }
       )
@@ -142,36 +170,6 @@ const ParkingBooking = ({ userId }) => {
     return true;
   };
 
-  // Handle booking confirmation
-  const handleBookingConfirm = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
-
-    try {
-      const { error } = await supabase
-        .from('parking_slots')
-        .update({
-          is_booked: true,
-          vehicle_number: formData.vehicleNumber.trim(),
-          start_time: formData.startTime,
-          vacate_time: formData.vacateTime,
-          booked_by_user_id: userId,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedSlot.id);
-
-      if (error) throw error;
-
-      showNotification(`Slot ${selectedSlot.id} booked successfully!`);
-      setShowBookingModal(false);
-      setSelectedSlot(null);
-    } catch (error) {
-      console.error('Error booking slot:', error);
-      showNotification('Error booking slot. Please try again.');
-    }
-  };
-
   // Handle slot vacation
   const handleVacateSlot = async () => {
     try {
@@ -198,9 +196,38 @@ const ParkingBooking = ({ userId }) => {
     }
   };
 
+  // Handle booking confirm
+  const handleBookingConfirm = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    try {
+      const { error } = await supabase
+        .from('parking_slots')
+        .update({
+          is_booked: true,
+          vehicle_number: formData.vehicleNumber,
+          start_time: formData.startTime,
+          vacate_time: formData.vacateTime,
+          booked_by_user_id: userId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedSlot.id);
+      if (error) throw error;
+      showNotification(`Slot ${selectedSlot.id} booked successfully!`);
+      setShowBookingModal(false);
+      setSelectedSlot(null);
+    } catch (error) {
+      console.error('Error booking slot:', error);
+      showNotification('Error booking slot. Please try again.');
+    }
+  };
+
   // Get current slots based on view
+  const sortedTwoWheelerSlots = useMemo(() => sortSlots(twoWheelerSlots), [twoWheelerSlots]);
+  const sortedFourWheelerSlots = useMemo(() => sortSlots(fourWheelerSlots), [fourWheelerSlots]);
+
   const getCurrentSlots = () => {
-    return currentView === 'two' ? twoWheelerSlots : fourWheelerSlots;
+    return currentView === 'two' ? sortedTwoWheelerSlots : sortedFourWheelerSlots;
   };
 
   // Format date for display
@@ -209,36 +236,34 @@ const ParkingBooking = ({ userId }) => {
     return new Date(date).toLocaleString();
   };
 
+  const currentSectionTitle = currentView === 'two' ? 'Two Wheeler Parking' : 'Four Wheeler Parking';
+  const totalSlots = currentView === 'two' ? twoWheelerSlots.length : fourWheelerSlots.length;
+
   return (
     <div className="parking-container">
-      <div className="parking-main">
-        {/* Header */}
-        <div className="top-bar">
-          <button
-            onClick={() => navigate('/')}
-            className="back-button"
-          >
-            <svg className="back-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to Dashboard
-          </button>
+      <div className="back-link-row" style={{ alignItems: 'flex-start', marginBottom: '0.5rem', position: 'relative' }}>
+        <button className="back-link" onClick={() => navigate('/dashboard')}>
+          &lt; Back to dashboard
+        </button>
+  <div className="header-right-box" style={{ position: 'absolute', right: 0, top: '0px', display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', border: '1.5px solid #dcdfe6', borderRadius: '12px', background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.10)', height: '64px', overflow: 'visible', zIndex: 100 }}>
+          <img src={cprimeLogo} alt="Cprime Logo" className="cprime-logo-in-header" style={{ height: 36, width: 'auto', marginRight: 2 }} />
+          <UserPopover avatarSize={48} showBookingsBtn={false} />
         </div>
+      </div>
+      <div className="parking-main">
         <header className="parking-header">
-          <div className="header-content">
-            <div className="header-text">
-              <h1 className="parking-title">Parking Dashboard</h1>
-            </div>
-            <div className="user-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="user-svg">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-            </div>
+          <div className="header-text">
+            <h1 className="parking-title">ParkEase</h1>
+            <p className="parking-subtitle">Simple &amp; Quick Parking Slot Booking</p>
           </div>
         </header>
 
         <div className="content-container">
+          <div className="section-header">
+            <h2 className="section-title">{currentSectionTitle}</h2>
+            <p className="section-subtitle">Total Slots: {totalSlots}</p>
+          </div>
+
           {/* Vehicle Type Selector */}
           <div className="vehicle-selector-container">
             <div className="vehicle-selector">
@@ -344,46 +369,6 @@ const ParkingBooking = ({ userId }) => {
                   Confirm Booking
                 </button>
               </div>
-              <div className="form-group">
-                <label htmlFor="startTime" className="form-label">
-                  Start Time <span className="required">*</span>
-                </label>
-                <input
-                  type="datetime-local"
-                  id="startTime"
-                  name="startTime"
-                  className="form-input"
-                  value={formData.startTime}
-                  onChange={handleFormChange}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="vacateTime" className="form-label">
-                  Vacate Time <span className="required">*</span>
-                </label>
-                <input
-                  type="datetime-local"
-                  id="vacateTime"
-                  name="vacateTime"
-                  className="form-input"
-                  value={formData.vacateTime}
-                  onChange={handleFormChange}
-                  required
-                />
-              </div>
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setShowBookingModal(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  Confirm Booking
-                </button>
-              </div>
             </form>
           </div>
         </div>
@@ -445,4 +430,8 @@ const ParkingBooking = ({ userId }) => {
       )}
     </div>
   );
+};
+
+export default ParkingBooking;
+
 

@@ -1,34 +1,37 @@
 .floor-layout-container {
   display: flex;
   min-height: 100vh;
-  background: #f7fafd;
-  padding: 20px 0;
-}
-.floor-layout-main {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 0 16px;
-  margin: 0 auto;
-  max-width: 1400px;
-  width: 100%;
-  justify-content: flex-start;
-}
-.floor-layout-title {
-  margin: 0;
-  padding: 80px 0 0 0;
-  font-weight: bold;
+    margin: 0;
+    padding: 80px 0 0 0;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 1.8rem !important;
+    flex: 1;
   letter-spacing: 0.5px;
   text-align: center;
   width: 100%;
   box-sizing: border-box;
+  font-size: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .floor-layout-svg-wrapper {
   position: relative;
   width: 100%;
   max-width: 800px;
-  margin: 60px auto;
+  margin: 30px auto;
   flex-shrink: 1;
   display: flex;
   justify-content: center;
@@ -78,7 +81,7 @@
   }
   
   .floor-layout-title {
-    font-size: 2.5rem;
+  font-size: 2.5rem;
     margin: 0;
   }
   
@@ -103,7 +106,7 @@
   }
   .floor-layout-title {
     padding: 40px 0 0 0;
-    font-size: 28px;
+    font-size: 1.1rem;
   }
   .floor-layout-svg-wrapper {
     margin: 40px auto;
@@ -120,7 +123,7 @@
   }
   .floor-layout-title {
     padding: 30px 0 0 0;
-    font-size: 24px;
+  font-size: 1.2rem;
   }
   .floor-layout-svg-wrapper {
     margin: 30px auto;
@@ -137,7 +140,7 @@
   }
   .floor-layout-title {
     padding: 20px 0 0 0;
-    font-size: 20px;
+  font-size: 1rem;
   }
   .floor-layout-svg-wrapper {
     margin: 20px auto;

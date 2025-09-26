@@ -7,7 +7,7 @@ import UserBookingsModal from './UserBookingsModal';
 import { getBookingsByUser } from '../services/bookingService';
 import { FaCalendarAlt } from 'react-icons/fa';
 
-const UserPopover = ({ onOpenBookingsModal }) => {
+const UserPopover = ({ onOpenBookingsModal, avatarSize = 32, showBookingsBtn = true }) => {
     const [showPopover, setShowPopover] = useState(false);
     const [userName, setUserName] = useState('User');
     // Modal state and bookings logic removed; handled by parent
@@ -101,6 +101,7 @@ const UserPopover = ({ onOpenBookingsModal }) => {
                 src={userAvatar}
                 alt="User Avatar"
                 className="user-avatar-image"
+                style={{ width: avatarSize, height: avatarSize, borderRadius: '50%', objectFit: 'cover', border: '2.5px solid #2563eb', boxShadow: '0 2px 8px #2563eb22' }}
                 onClick={() => setShowPopover(!showPopover)}
                 ref={avatarRef}
                 onError={(e) => { e.target.onerror = null; e.target.src = ''; }}
@@ -113,15 +114,17 @@ const UserPopover = ({ onOpenBookingsModal }) => {
                         <img src={userAvatar} alt="User" className="popover-user-avatar-img" />
                     </div>
                     <div className="popover-greeting">Hi, {userName}!</div>
-                    <button
-                        className="user-bookings-btn"
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: 8, margin: '12px auto 0 auto', padding: '8px 16px', borderRadius: 6, border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer', fontWeight: 500
-                        }}
-                        onClick={onOpenBookingsModal}
-                    >
-                        <FaCalendarAlt style={{ marginRight: 6 }} /> My Bookings
-                    </button>
+                    {showBookingsBtn && (
+                        <button
+                            className="user-bookings-btn"
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 8, margin: '12px auto 0 auto', padding: '8px 16px', borderRadius: 6, border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer', fontWeight: 500
+                            }}
+                            onClick={onOpenBookingsModal}
+                        >
+                            <FaCalendarAlt style={{ marginRight: 6 }} /> My Bookings
+                        </button>
+                    )}
                     <div style={{ marginTop: 12 }}>
                         <LogoutButton />
                     </div>

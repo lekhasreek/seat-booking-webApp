@@ -1,13 +1,9 @@
 /* Header.css */
 
 .header-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 20px;
+    width: 100vw;
     background-color: #fdfdfd;
     border-bottom: 1px solid #e5e7eb;
-    height: 50px;
     position: fixed;
     top: 0;
     left: 0;
@@ -15,16 +11,23 @@
     z-index: 101;
     box-sizing: border-box;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    height: 64px;
+    padding: 0 32px;
 }
 
 .header-title {
-    font-size: 20px;
+    font-size: 32px;
     font-weight: 700;
     color: #2c3e50;
     letter-spacing: -0.5px;
-    margin-left: 16px;
+    margin: 0 auto;
     white-space: nowrap;
     transition: all 0.3s ease;
+    text-align: center;
+    flex: 1;
 }
 
 .header-right-box {
