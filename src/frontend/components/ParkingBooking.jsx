@@ -213,21 +213,22 @@ const ParkingBooking = ({ userId }) => {
     <div className="parking-container">
       <div className="parking-main">
         {/* Header */}
+        <div className="top-bar">
+          <button
+            onClick={() => navigate('/')}
+            className="back-button"
+          >
+            <svg className="back-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Dashboard
+          </button>
+        </div>
         <header className="parking-header">
           <div className="header-content">
             <div className="header-text">
               <h1 className="parking-title">Parking Dashboard</h1>
-              <p className="parking-subtitle">Book your parking slot in real-time.</p>
             </div>
-            <button
-              onClick={() => navigate('/')}
-              className="back-button"
-            >
-              <svg className="back-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Dashboard
-            </button>
             <div className="user-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="user-svg">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -237,42 +238,46 @@ const ParkingBooking = ({ userId }) => {
           </div>
         </header>
 
-        {/* Vehicle Type Selector */}
-        <div className="vehicle-selector">
-          <button
-            id="showTwoWheelers"
-            className={`selector-btn ${currentView === 'two' ? 'active' : ''}`}
-            onClick={() => setCurrentView('two')}
-          >
-            Two Wheelers
-          </button>
-          <button
-            id="showFourWheelers"
-            className={`selector-btn ${currentView === 'four' ? 'active' : ''}`}
-            onClick={() => setCurrentView('four')}
-          >
-            Four Wheelers
-          </button>
-        </div>
-
-        {/* Parking Grids */}
-        <div className="parking-grids">
-          <div className={`parking-grid ${currentView === 'two' ? 'two-wheeler-grid' : 'four-wheeler-grid'}`}>
-            {getCurrentSlots().map((slot) => (
-              <div
-                key={slot.id}
-                className={`slot ${slot.is_booked ? 'booked' : 'available'}`}
-                onClick={() => handleSlotClick(slot)}
+        <div className="content-container">
+          {/* Vehicle Type Selector */}
+          <div className="vehicle-selector-container">
+            <div className="vehicle-selector">
+              <button
+                id="showTwoWheelers"
+                className={`selector-btn ${currentView === 'two' ? 'active' : ''}`}
+                onClick={() => setCurrentView('two')}
               >
-                <div className="slot-id">{slot.id}</div>
-                <div className="slot-status">
-                  {slot.is_booked ? 'Booked' : 'Available'}
+                Two Wheelers
+              </button>
+              <button
+                id="showFourWheelers"
+                className={`selector-btn ${currentView === 'four' ? 'active' : ''}`}
+                onClick={() => setCurrentView('four')}
+              >
+                Four Wheelers
+              </button>
+            </div>
+          </div>
+
+          {/* Parking Grids */}
+          <div className="parking-grids-container">
+            <div className={`parking-grid ${currentView === 'two' ? 'two-wheeler-grid' : 'four-wheeler-grid'}`}>
+              {getCurrentSlots().map((slot) => (
+                <div
+                  key={slot.id}
+                  className={`slot ${slot.is_booked ? 'booked' : 'available'}`}
+                  onClick={() => handleSlotClick(slot)}
+                >
+                  <div className="slot-id">{slot.id}</div>
+                  <div className="slot-status">
+                    {slot.is_booked ? 'Booked' : 'Available'}
+                  </div>
+                  {slot.is_booked && slot.vehicle_number && (
+                    <div className="slot-vehicle">{slot.vehicle_number}</div>
+                  )}
                 </div>
-                {slot.is_booked && slot.vehicle_number && (
-                  <div className="slot-vehicle">{slot.vehicle_number}</div>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -298,6 +303,46 @@ const ParkingBooking = ({ userId }) => {
                   onChange={handleFormChange}
                   required
                 />
+              </div>
+              <div className="form-group">
+                <label htmlFor="startTime" className="form-label">
+                  Start Time <span className="required">*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  id="startTime"
+                  name="startTime"
+                  className="form-input"
+                  value={formData.startTime}
+                  onChange={handleFormChange}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="vacateTime" className="form-label">
+                  Vacate Time <span className="required">*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  id="vacateTime"
+                  name="vacateTime"
+                  className="form-input"
+                  value={formData.vacateTime}
+                  onChange={handleFormChange}
+                  required
+                />
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowBookingModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Confirm Booking
+                </button>
               </div>
               <div className="form-group">
                 <label htmlFor="startTime" className="form-label">
@@ -400,6 +445,4 @@ const ParkingBooking = ({ userId }) => {
       )}
     </div>
   );
-};
 
-export default ParkingBooking;
