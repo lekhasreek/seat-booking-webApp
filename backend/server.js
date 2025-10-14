@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import { supabase } from './supabaseClient.js';
+import parkingAPI from './parking.js';
 
 dotenv.config();
 
@@ -17,6 +18,32 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// ============================================
+// PARKING BOOKING API ENDPOINTS (Time-based)
+// ============================================
+
+// GET /api/parking/availability - Check parking slot availability for a time range
+app.get('/api/parking/availability', parkingAPI.getAvailability);
+
+// POST /api/parking/book - Create a new parking booking
+app.post('/api/parking/book', parkingAPI.createBooking);
+
+// GET /api/parking/bookings/user/:userId - Get all bookings for a user
+app.get('/api/parking/bookings/user/:userId', parkingAPI.getUserBookings);
+
+// GET /api/parking/bookings/:bookingId - Get a specific booking
+app.get('/api/parking/bookings/:bookingId', parkingAPI.getBookingById);
+
+// DELETE /api/parking/bookings/:bookingId - Cancel a booking
+app.delete('/api/parking/bookings/:bookingId', parkingAPI.cancelBooking);
+
+// GET /api/parking/slots/:slotId/bookings - Get all bookings for a slot
+app.get('/api/parking/slots/:slotId/bookings', parkingAPI.getSlotBookings);
+
+// ============================================
+// SEAT BOOKING API ENDPOINTS (Existing)
+// ============================================
 
 // GET /api/bookings/user/:userId - Return all bookings for a user
 app.get('/api/bookings/user/:userId', async (req, res) => {

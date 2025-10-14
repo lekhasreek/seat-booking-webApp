@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import FloorLayout from "./components/FloorLayout";
 import SectionSeats from "./components/SectionSeats";
 import ChoicePage from "./components/ChoicePage";
-import ParkingBooking from "./components/ParkingBooking";
+import ParkingBooking from "./components/ParkingBookingRefactored";
 import Login from "./components/Login";
 import Signup from "./components/Signup";
 import { ToastContainer, toast } from 'react-toastify';

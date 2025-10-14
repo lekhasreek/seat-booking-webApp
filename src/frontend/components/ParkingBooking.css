@@ -515,10 +515,418 @@
   }
 }
 
+/* ============================================
+   TIME-BASED BOOKING STYLES
+   ============================================ */
+
+/* Time Range Selector */
+.time-range-selector {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
+}
+
+.time-selector-title {
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+
+.time-inputs-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.time-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.time-input-group label {
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.time-input {
+  padding: 0.75rem 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1f2937;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.time-input:focus {
+  outline: none;
+  border-color: white;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+}
+
+.search-btn {
+  padding: 0.75rem 2rem;
+  background: white;
+  color: #2563eb;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 180px;
+}
+
+.search-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  background: #f8f9fa;
+}
+
+.search-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.search-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Time Range Banner */
+.time-range-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+  border-left: 4px solid #3b82f6;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  animation: slideInDown 0.3s ease;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.banner-text {
+  color: #1e40af;
+  font-size: 0.95rem;
+}
+
+.banner-text strong {
+  font-weight: 600;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 16px;
+  border: 2px dashed #d1d5db;
+}
+
+.empty-state h3 {
+  color: #374151;
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+/* Updated Slot Styles with Color Coding */
+.slot {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slot.available {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 2px solid #10b981;
+}
+
+.slot.available:hover {
+  background: linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%);
+  border-color: #059669;
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(16, 185, 129, 0.25);
+}
+
+.slot.booked {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 2px solid #ef4444;
+  cursor: pointer;
+}
+
+.slot.booked:hover {
+  background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+  border-color: #dc2626;
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(239, 68, 68, 0.25);
+}
+
+.slot.hovered {
+  z-index: 10;
+}
+
+.slot-status {
+  font-weight: 600;
+}
+
+.slot.available .slot-status {
+  color: #047857;
+}
+
+.slot.booked .slot-status {
+  color: #b91c1c;
+}
+
+.slot-booking-count {
+  font-size: 0.7rem;
+  color: #991b1b;
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
+/* Slot Tooltip */
+.slot-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: white;
+  padding: 0.75rem;
+  border-radius: 8px;
+  min-width: 220px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  animation: tooltipFadeIn 0.2s ease;
+  pointer-events: none;
+}
+
+.slot-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #1f2937;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.tooltip-header {
+  font-weight: 600;
+  font-size: 0.75rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tooltip-booking {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.tooltip-time {
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.tooltip-vehicle {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+/* Section Header Updates */
+.count-available {
+  color: #059669;
+  font-weight: 700;
+}
+
+.count-booked {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* Parking Legend */
+.parking-legend {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 2rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-color {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 2px solid;
+}
+
+.legend-color.available {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-color: #10b981;
+}
+
+.legend-color.booked {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #ef4444;
+}
+
+.legend-item span {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+/* Modal Updates */
+.booking-time-display {
+  background: #f3f4f6;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.booking-time-display p {
+  margin: 0.25rem 0;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.bookings-list {
+  margin-top: 1rem;
+}
+
+.bookings-list h4 {
+  font-size: 0.95rem;
+  color: #374151;
+  margin-bottom: 0.75rem;
+}
+
+.booking-card {
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  border-left: 3px solid #3b82f6;
+}
+
+.booking-card div {
+  margin: 0.25rem 0;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.booking-time-range {
+  font-weight: 600;
+  color: #1f2937 !important;
+}
+
+.btn-cancel-small {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel-small:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.btn-cancel-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .parking-container {
     padding: 2.5rem 1rem 2rem;
+  }
+
+  .time-range-selector {
+    padding: 1.5rem;
+  }
+
+  .time-inputs-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .time-input-group {
+    min-width: 100%;
+  }
+
+  .search-btn {
+    width: 100%;
+  }
+
+  .parking-legend {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .slot-tooltip {
+    min-width: 180px;
+    font-size: 0.75rem;
   }
 
   .parking-main {
