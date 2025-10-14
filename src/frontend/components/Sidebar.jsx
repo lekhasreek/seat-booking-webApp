@@ -74,13 +74,13 @@ const Sidebar = ({ currentSection, onSectionSelect, isOpen: controlledOpen, onCl
               key={section.id}
               className={`sidebar-section-item${currentSection === section.id ? ' selected' : ''}`}
               onClick={() => {
-                onSectionSelect ? onSectionSelect(section.id) : navigate(`/section/${section.id}`);
+                navigate(`/seat-booking/section/${section.id}`);
                 if (isMobile) toggleOpen();
               }}
               tabIndex={0}
               onKeyDown={e => {
                 if (e.key === 'Enter' || e.key === ' ') {
-                  onSectionSelect ? onSectionSelect(section.id) : navigate(`/section/${section.id}`);
+                  navigate(`/seat-booking/section/${section.id}`);
                   if (isMobile) toggleOpen();
                 }
               }}
