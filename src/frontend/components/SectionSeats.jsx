@@ -48,35 +48,74 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
   // Support both array and object mapping for seatBookings
   let seatBookingsRaw = bookedSeatsMap[selectedDate]?.[seatLabel];
   let seatBookings = {};
-  if (Array.isArray(seatBookingsRaw)) {
-    // Convert array of bookings to timeslot mapping
-    seatBookingsRaw.forEach(b => {
-      if (b.Timeslot) {
-        if (typeof b.Timeslot === 'string') {
-          try {
+  // Helper to collect booked times as [[start,end], ...]
+  const collectBookedTimes = (raw) => {
+    const out = [];
+    if (!raw) return out;
+    if (Array.isArray(raw)) {
+      raw.forEach(b => {
+        try {
+          if (!b || !b.Timeslot) return;
+          if (typeof b.Timeslot === 'string') {
             const parsed = JSON.parse(b.Timeslot);
-            if (Array.isArray(parsed.timeslot)) {
-              parsed.timeslot.forEach(([start, end]) => {
-                seatBookings[`${start}-${end}`] = b;
-              });
-            }
-          } catch (e) {}
-        } else if (typeof b.Timeslot === 'object' && Array.isArray(b.Timeslot.timeslot)) {
-          b.Timeslot.timeslot.forEach(([start, end]) => {
-            seatBookings[`${start}-${end}`] = b;
-          });
-        }
+            if (Array.isArray(parsed.timeslot)) parsed.timeslot.forEach(t => out.push(t));
+          } else if (typeof b.Timeslot === 'object' && Array.isArray(b.Timeslot.timeslot)) {
+            b.Timeslot.timeslot.forEach(t => out.push(t));
+          }
+        } catch (e) { /* ignore malformed */ }
+      });
+    } else if (typeof raw === 'object' && raw !== null) {
+      // raw is mapping key->booking
+      Object.values(raw).forEach(b => {
+        try {
+          if (!b || !b.Timeslot) return;
+          if (typeof b.Timeslot === 'string') {
+            const parsed = JSON.parse(b.Timeslot);
+            if (Array.isArray(parsed.timeslot)) parsed.timeslot.forEach(t => out.push(t));
+          } else if (typeof b.Timeslot === 'object' && Array.isArray(b.Timeslot.timeslot)) {
+            b.Timeslot.timeslot.forEach(t => out.push(t));
+          }
+        } catch (e) { /* ignore */ }
+      });
+    }
+    return out;
+  };
+
+  // Build seatBookings mapping (keyed by start_end) for existing UI logic
+  const bookedTimes = collectBookedTimes(seatBookingsRaw);
+  if (Array.isArray(seatBookingsRaw)) {
+    seatBookingsRaw.forEach(b => {
+      if (b && b.Timeslot) {
+        try {
+          const parsed = typeof b.Timeslot === 'string' ? JSON.parse(b.Timeslot) : b.Timeslot;
+          if (parsed && Array.isArray(parsed.timeslot)) {
+            parsed.timeslot.forEach(([start, end]) => { seatBookings[`${start}_${end}`] = b; });
+          }
+        } catch (e) { /* ignore */ }
       }
     });
   } else if (typeof seatBookingsRaw === 'object' && seatBookingsRaw !== null) {
     seatBookings = seatBookingsRaw;
   }
+
+  // If a time filter is applied, determine whether seat is free for that range
+  const hasAppliedRange = selectedRange && selectedRange.checkIn && selectedRange.checkOut && selectedRange.checkOut > selectedRange.checkIn;
+  let isFreeForAppliedRange = true; // assume free when no bookings
+  if (hasAppliedRange) {
+    // Check overlap between any booked times and applied range
+    const appliedStart = selectedRange.checkIn;
+    const appliedEnd = selectedRange.checkOut;
+    // if any booked slot overlaps the applied range, seat is not free
+    isFreeForAppliedRange = !bookedTimes.some(([s, e]) => (s < appliedEnd && e > appliedStart));
+  }
+
   // For legacy morning/afternoon/evening slots, fallback
   const timeslots = Object.keys(seatBookings).length > 0 ? Object.keys(seatBookings) : ['morning', 'afternoon', 'evening'];
   const bookedCount = timeslots.filter(slot => !!seatBookings[slot]).length;
   const isFullyBooked = bookedCount === timeslots.length;
   const isPartiallyBooked = bookedCount > 0 && bookedCount < timeslots.length;
-  const isAvailable = bookedCount === 0;
+  // When an applied range exists, availability should reflect whether seat is free for that range
+  const isAvailable = hasAppliedRange ? isFreeForAppliedRange : bookedCount === 0;
   // --- End new logic ---
 
   return (
@@ -89,6 +128,8 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
         height: overlay.height,
         background: isActive
           ? '#2563eb'
+          : hasAppliedRange
+          ? (isFreeForAppliedRange ? '#e6fbe8' : '#d1d5db')
           : isFullyBooked
           ? '#d1d5db'
           : isPartiallyBooked
@@ -98,6 +139,8 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
           : '#fff',
         border: isActive
           ? '2.5px solid #2563eb'
+          : hasAppliedRange
+          ? (isFreeForAppliedRange ? '2.5px solid #22c55e' : '2.5px solid #888')
           : isFullyBooked
           ? '2.5px solid #888'
           : isAvailable
@@ -114,8 +157,8 @@ function SeatOverlay({ overlay, isBooked, setShowBooking, selectedDate, setHover
         justifyContent: 'center',
         fontWeight: 600,
         fontSize: 16,
-  cursor: isAvailable ? 'pointer' : 'not-allowed',
-  opacity: isAvailable ? 1 : 0.7,
+        cursor: isAvailable ? 'pointer' : 'not-allowed',
+        opacity: isAvailable ? 1 : 0.7,
         transition: 'background 0.15s, border 0.15s',
       }}
       onClick={() => {
