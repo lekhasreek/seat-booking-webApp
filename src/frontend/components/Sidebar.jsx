@@ -90,7 +90,7 @@ const Sidebar = ({ currentSection, onSectionSelect, isOpen: controlledOpen, onCl
           ))}
         </ul>
         {/* Map view link at the bottom */}
-        <div className="sidebar-map-link" onClick={() => { navigate('/'); if (isMobile) toggleOpen(); }}>
+        <div className="sidebar-map-link" onClick={() => { navigate('/seat-booking'); if (isMobile) toggleOpen(); }}>
           <span className="sidebar-map-arrow">&larr;</span>
           <span>Map view</span>
         </div>
