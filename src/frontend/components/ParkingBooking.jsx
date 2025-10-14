@@ -187,9 +187,10 @@ const ParkingBooking = ({ userId }) => {
 
       if (error) throw error;
 
-      showNotification(`Slot ${selectedSlotDetails.id} vacated successfully!`);
-      setShowDetailsModal(false);
-      setSelectedSlotDetails(null);
+  showNotification(`Slot ${selectedSlotDetails.id} vacated successfully!`);
+  setShowDetailsModal(false);
+  setSelectedSlotDetails(null);
+  fetchParkingSlots();
     } catch (error) {
       console.error('Error vacating slot:', error);
       showNotification('Error vacating slot. Please try again.');
@@ -213,9 +214,10 @@ const ParkingBooking = ({ userId }) => {
         })
         .eq('id', selectedSlot.id);
       if (error) throw error;
-      showNotification(`Slot ${selectedSlot.id} booked successfully!`);
-      setShowBookingModal(false);
-      setSelectedSlot(null);
+  showNotification(`Slot ${selectedSlot.id} booked successfully!`);
+  setShowBookingModal(false);
+  setSelectedSlot(null);
+  fetchParkingSlots();
     } catch (error) {
       console.error('Error booking slot:', error);
       showNotification('Error booking slot. Please try again.');
