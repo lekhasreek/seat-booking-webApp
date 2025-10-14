@@ -20,13 +20,38 @@ export const getAvailability = async (req, res) => {
   // Validate time range
   const startTime = new Date(from);
   const endTime = new Date(to);
+  const now = new Date();
   
   if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
     return res.status(400).json({ error: 'Invalid date format. Use ISO 8601 format.' });
   }
 
+  // Validation 1: Start time must not be in the past
+  if (startTime < now) {
+    return res.status(400).json({ error: 'Start time cannot be in the past' });
+  }
+
+  // Validation 2: End time must be after start time
   if (endTime <= startTime) {
     return res.status(400).json({ error: 'End time must be after start time' });
+  }
+
+  // Validation 3: Booking duration must not exceed 24 hours
+  const maxDuration = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+  const duration = endTime - startTime;
+  if (duration > maxDuration) {
+    return res.status(400).json({ error: 'Booking duration cannot exceed 24 hours' });
+  }
+
+  // Validation 4: Cannot book more than 1 day in advance
+  const oneDayFromNow = new Date(now);
+  oneDayFromNow.setDate(now.getDate() + 1);
+  oneDayFromNow.setHours(23, 59, 59, 999); // End of tomorrow
+  
+  if (startTime > oneDayFromNow) {
+    return res.status(400).json({ 
+      error: 'You can only book up to 1 day in advance (today and tomorrow)' 
+    });
   }
 
   try {
@@ -106,13 +131,38 @@ export const createBooking = async (req, res) => {
   // Validate time range
   const startDateTime = new Date(start_time);
   const endDateTime = new Date(end_time);
+  const now = new Date();
 
   if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
     return res.status(400).json({ error: 'Invalid date format. Use ISO 8601 format.' });
   }
 
+  // Validation 1: Start time must not be in the past
+  if (startDateTime < now) {
+    return res.status(400).json({ error: 'Start time cannot be in the past' });
+  }
+
+  // Validation 2: End time must be after start time
   if (endDateTime <= startDateTime) {
     return res.status(400).json({ error: 'End time must be after start time' });
+  }
+
+  // Validation 3: Booking duration must not exceed 24 hours
+  const maxDuration = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+  const duration = endDateTime - startDateTime;
+  if (duration > maxDuration) {
+    return res.status(400).json({ error: 'Booking duration cannot exceed 24 hours' });
+  }
+
+  // Validation 4: Cannot book more than 1 day in advance
+  const oneDayFromNow = new Date(now);
+  oneDayFromNow.setDate(now.getDate() + 1);
+  oneDayFromNow.setHours(23, 59, 59, 999); // End of tomorrow
+  
+  if (startDateTime > oneDayFromNow) {
+    return res.status(400).json({ 
+      error: 'You can only book up to 1 day in advance (today and tomorrow)' 
+    });
   }
 
   try {

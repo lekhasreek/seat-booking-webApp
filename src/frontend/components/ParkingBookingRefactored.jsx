@@ -27,6 +27,8 @@ const ParkingBooking = ({ userId }) => {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
+  const [minDateTime, setMinDateTime] = useState('');
+  const [maxDateTime, setMaxDateTime] = useState('');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -41,6 +43,15 @@ const ParkingBooking = ({ userId }) => {
     
     const twoHoursLater = new Date(nextHour);
     twoHoursLater.setHours(nextHour.getHours() + 2);
+
+    // Set min datetime to now
+    setMinDateTime(formatDateTimeLocal(now));
+    
+    // Set max datetime to end of tomorrow
+    const endOfTomorrow = new Date(now);
+    endOfTomorrow.setDate(now.getDate() + 1);
+    endOfTomorrow.setHours(23, 59, 0, 0);
+    setMaxDateTime(formatDateTimeLocal(endOfTomorrow));
 
     setStartTime(formatDateTimeLocal(nextHour));
     setEndTime(formatDateTimeLocal(twoHoursLater));
@@ -94,9 +105,35 @@ const ParkingBooking = ({ userId }) => {
 
     const start = new Date(startTime);
     const end = new Date(endTime);
+    const now = new Date();
 
+    // Validation 1: Start time must not be in the past
+    if (start < now) {
+      showNotification('Start time cannot be in the past');
+      return;
+    }
+
+    // Validation 2: End time must be after start time
     if (end <= start) {
       showNotification('End time must be after start time');
+      return;
+    }
+
+    // Validation 3: Booking duration must not exceed 24 hours
+    const maxDuration = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const duration = end - start;
+    if (duration > maxDuration) {
+      showNotification('Booking duration cannot exceed 24 hours');
+      return;
+    }
+
+    // Validation 4: Cannot book more than 1 day in advance
+    const oneDayFromNow = new Date(now);
+    oneDayFromNow.setDate(now.getDate() + 1);
+    oneDayFromNow.setHours(23, 59, 59, 999); // End of tomorrow
+    
+    if (start > oneDayFromNow) {
+      showNotification('You can only book up to 1 day in advance (today and tomorrow)');
       return;
     }
 
@@ -309,6 +346,8 @@ const ParkingBooking = ({ userId }) => {
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
                   className="time-input"
+                  min={minDateTime}
+                  max={maxDateTime}
                 />
               </div>
               <div className="time-input-group">
@@ -319,6 +358,8 @@ const ParkingBooking = ({ userId }) => {
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
                   className="time-input"
+                  min={minDateTime}
+                  max={maxDateTime}
                 />
               </div>
               <button 
