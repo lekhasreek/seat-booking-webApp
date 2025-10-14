@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import './TimeFilter.css';
 
 /**
@@ -12,6 +12,9 @@ export default function TimeFilter({ selectedRange, onRangeChange, onApply, onCl
 
   const isValidRange = Boolean(checkIn && checkOut && checkOut > checkIn);
 
+  const checkInRef = useRef(null);
+  const checkOutRef = useRef(null);
+
   const setPreset = (type) => {
     if (type === 'checkin') {
       const d = new Date();
@@ -22,15 +25,20 @@ export default function TimeFilter({ selectedRange, onRangeChange, onApply, onCl
       const mm = String(d.getMinutes()).padStart(2, '0');
       onRangeChange({ ...selectedRange, checkIn: `${hh}:${mm}` });
     } else if (type === 'checkout') {
-      if (checkIn) {
-        const [h, m] = checkIn.split(':').map(Number);
+      // Prefer the live input value (in case parent hasn't updated yet)
+      const liveCheckIn = (checkInRef.current && checkInRef.current.value) || checkIn;
+      if (liveCheckIn) {
+        const [h, m] = liveCheckIn.split(':').map(Number);
         let mins = h * 60 + m + 120;
         mins = Math.min(mins, 23 * 60 + 59);
         const hh = String(Math.floor(mins / 60)).padStart(2, '0');
         const mm = String(mins % 60).padStart(2, '0');
         onRangeChange({ ...selectedRange, checkOut: `${hh}:${mm}` });
+        // Update DOM input if available
+        if (checkOutRef.current) checkOutRef.current.value = `${hh}:${mm}`;
       } else {
         onRangeChange({ ...selectedRange, checkOut: '18:00' });
+        if (checkOutRef.current) checkOutRef.current.value = '18:00';
       }
     }
   };
@@ -41,6 +49,7 @@ export default function TimeFilter({ selectedRange, onRangeChange, onApply, onCl
         <div className="timefilter-group">
           <span className="timefilter-label">Check in</span>
           <input
+            ref={checkInRef}
             className="timefilter-input"
             type="time"
             value={checkIn}
@@ -52,6 +61,7 @@ export default function TimeFilter({ selectedRange, onRangeChange, onApply, onCl
         <div className="timefilter-group">
           <span className="timefilter-label">Check out</span>
           <input
+            ref={checkOutRef}
             className="timefilter-input"
             type="time"
             value={checkOut}
