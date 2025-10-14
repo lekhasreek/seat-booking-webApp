@@ -206,17 +206,18 @@ app.get('/api/seats', async (req, res) => {
         if (userError || !userRows || !userRows.User_id || !userRows.Name) return res.status(400).json({ error: 'Invalid user ID or user not found', details: userError, User_id });
         const bookedUserName = userRows.Name;
 
-        const inserts = nonConflicting.map(slot => ({
+        // Insert a single booking row for this seat with all non-conflicting timeslots
+        const insertObj = {
           created_at,
           Seat_id,
           Seat_Number: Seat_Number_db,
-          Timeslot: { timeslot: [slot] },
+          Timeslot: { timeslot: nonConflicting },
           Name: bookedUserName,
           User_id,
-        }));
+        };
 
         try {
-          const { data: inserted, error: insertError } = await supabase.from('Bookings').insert(inserts);
+          const { data: inserted, error: insertError } = await supabase.from('Bookings').insert([insertObj]);
           if (insertError) return res.status(500).json({ error: insertError.message, details: insertError.details, body: req.body });
           const response = { inserted };
           if (conflicts.length > 0) response.conflicts = conflicts;
@@ -280,7 +281,14 @@ app.put('/api/bookings/:bookingId', async (req, res) => {
       if (fetchErr || !existingBooking) return res.status(400).json({ error: 'Booking not found for update' });
 
       const seatId = updateFields.Seat_id || existingBooking.Seat_id;
-      const createdAt = updateFields.created_at || existingBooking.created_at;
+      let createdAt = updateFields.created_at || existingBooking.created_at;
+      // Only append T00:00:00.000Z if createdAt is just a date (YYYY-MM-DD)
+      if (/^\d{4}-\d{2}-\d{2}$/.test(createdAt)) {
+        createdAt = createdAt;
+      } else if (/^\d{4}-\d{2}-\d{2}T/.test(createdAt)) {
+        // If already has T, strip time for day matching
+        createdAt = createdAt.slice(0, 10);
+      }
       const startOfDay = `${createdAt}T00:00:00.000Z`;
       const endOfDay = `${createdAt}T23:59:59.999Z`;
 

@@ -78,13 +78,47 @@ const BookingModal = ({
       .map(ts => [ts.start, ts.end]);
     const timeslotJSON = { timeslot: formattedTimeslots };
     if (isEdit && bookingId) {
-      // Edit booking: replace the timeslot for the booking being edited
+      // Edit booking: replace the specific original timeslot (if preselectedRange provided)
+      // with the newly entered timeslots, then dedupe and update.
       try {
-        const updatedJson = { timeslot: formattedTimeslots };
+        // Read existing timeslots from bookingDetails if provided
+        let existingTimes = [];
+        if (bookingDetails && bookingDetails.Timeslot) {
+          try {
+            existingTimes = typeof bookingDetails.Timeslot === 'string' ? JSON.parse(bookingDetails.Timeslot).timeslot : bookingDetails.Timeslot.timeslot;
+            if (!Array.isArray(existingTimes)) existingTimes = [];
+          } catch (e) { existingTimes = []; }
+        }
+
+        // If a preselectedRange is provided (the slot being edited), remove that from existingTimes
+        let baseTimes = Array.isArray(existingTimes) ? [...existingTimes] : [];
+        if (preselectedRange && preselectedRange.length === 2) {
+          baseTimes = baseTimes.filter(([s, e]) => !(s === preselectedRange[0] && e === preselectedRange[1]));
+        }
+
+        // Merge baseTimes with new formattedTimeslots
+        const merged = [...baseTimes, ...formattedTimeslots];
+        // Dedupe by exact start-end
+        const seen = new Set();
+        const deduped = [];
+        for (const [s, e] of merged) {
+          const key = `${s}-${e}`;
+          if (!seen.has(key)) { seen.add(key); deduped.push([s, e]); }
+        }
+
+        // Optionally, sort by start time for predictable ordering
+        deduped.sort((a, b) => a[0].localeCompare(b[0]));
+
+        const updatedJson = { timeslot: deduped };
         await editBooking(bookingId, {
-          Timeslot: JSON.stringify(updatedJson),
+          Timeslot: updatedJson,
           created_at: date, // Ensure correct format (YYYY-MM-DD)
         });
+        if (window && window.toast) {
+          window.toast.success('Timeslot updated successfully.');
+        } else if (typeof toast !== 'undefined') {
+          toast.success('Timeslot updated successfully.');
+        }
         onClose();
       } catch (err) {
         setError('Failed to edit booking: ' + err.message);

@@ -546,7 +546,7 @@ useEffect(() => {
         const payload = {
           created_at: date,
           Seat_id: seatUUID,
-          Timeslot: JSON.stringify({ timeslot: selectedTimeSlots }),
+          Timeslot: { timeslot: selectedTimeSlots },
           User_id: userId,
         };
         const res = await insertBooking(payload);
@@ -912,7 +912,7 @@ useEffect(() => {
                         await insertBooking({
                           created_at: selectedDate,
                           Seat_id: match.Seat_id,
-                          Timeslot: JSON.stringify({ timeslot: bookingData.timeslot.timeslot }),
+                          Timeslot: { timeslot: bookingData.timeslot.timeslot },
                           User_id: userId,
                         });
                       } catch (err) {
@@ -939,10 +939,10 @@ useEffect(() => {
                       return;
                     }
                     try {
-                      const res = await insertBooking({
+                        const res = await insertBooking({
                         created_at: selectedDate,
                         Seat_id: seatUUID,
-                        Timeslot: JSON.stringify({ timeslot: bookingData.timeslot.timeslot }),
+                        Timeslot: { timeslot: bookingData.timeslot.timeslot },
                         User_id: userId,
                       });
 
@@ -1020,30 +1020,34 @@ useEffect(() => {
               }
               bookedSeatsMap={bookedSeatsMap}
               onDelete={async () => {
-                // Find bookingId for this seat, date, and timeslot
+                // Find booking object for this seat/date by Booking_id or by timeslot key
                 const seatLabel = showBooking?.seatId?.replace(/^Square-/, '');
                 const timeslot = selectedTimeSlots[0]; // Assume single timeslot for simplicity
                 const key = timeslot ? `${timeslot[0]}_${timeslot[1]}` : null;
-                const bookingDetails = key ? bookedSeatsMap[selectedDate]?.[seatLabel]?.[key] : null;
+                let bookingDetails = null;
+                if (key) bookingDetails = bookedSeatsMap[selectedDate]?.[seatLabel]?.[key];
+                // fallback: search by Booking_id in the seat's bookings
+                if ((!bookingDetails || !bookingDetails.Booking_id) && bookedSeatsMap[selectedDate]?.[seatLabel]) {
+                  const vals = Object.values(bookedSeatsMap[selectedDate][seatLabel] || {});
+                  bookingDetails = vals.find(v => v && v.Booking_id === showBooking?.bookingId) || vals[0] || null;
+                }
                 if (!bookingDetails || !bookingDetails.Booking_id) {
                   toast.error('Booking not found for cancellation.');
                   return;
                 }
                 try {
-                  // Parse timeslot array
+                  // Parse timeslot array robustly
                   let timeslotArr = [];
-                  if (bookingDetails.Timeslot) {
-                    if (typeof bookingDetails.Timeslot === 'string') {
-                      try {
+                  try {
+                    if (bookingDetails.Timeslot) {
+                      if (typeof bookingDetails.Timeslot === 'string') {
                         const parsed = JSON.parse(bookingDetails.Timeslot);
-                        if (Array.isArray(parsed.timeslot)) {
-                          timeslotArr = parsed.timeslot;
-                        }
-                      } catch (e) {}
-                    } else if (typeof bookingDetails.Timeslot === 'object' && Array.isArray(bookingDetails.Timeslot.timeslot)) {
-                      timeslotArr = bookingDetails.Timeslot.timeslot;
+                        if (Array.isArray(parsed.timeslot)) timeslotArr = parsed.timeslot;
+                      } else if (typeof bookingDetails.Timeslot === 'object' && Array.isArray(bookingDetails.Timeslot.timeslot)) {
+                        timeslotArr = bookingDetails.Timeslot.timeslot;
+                      }
                     }
-                  }
+                  } catch (e) { timeslotArr = []; }
                   // Remove the selected timeslot
                   const toDelete = selectedTimeSlots[0];
                   timeslotArr = timeslotArr.filter(([start, end]) => !(start === toDelete[0] && end === toDelete[1]));
@@ -1052,14 +1056,20 @@ useEffect(() => {
                     await deleteBooking(bookingDetails.Booking_id);
                     toast.success('Booking cancelled.');
                   } else {
-                    const timeslotJson = JSON.stringify({ timeslot: timeslotArr });
+                    // Ensure created_at is just the date (YYYY-MM-DD)
+                    let createdAtDate = selectedDate;
+                    if (bookingDetails.created_at) {
+                      // Try to extract YYYY-MM-DD from created_at
+                      const match = bookingDetails.created_at.match(/^\d{4}-\d{2}-\d{2}/);
+                      if (match) createdAtDate = match[0];
+                    }
                     await editBooking(bookingDetails.Booking_id, {
                       Seat_id: bookingDetails.Seat_id,
-                      Timeslot: timeslotJson,
+                      Timeslot: { timeslot: timeslotArr },
                       User_id: userId,
-                      created_at: selectedDate,
+                      created_at: createdAtDate,
                     });
-                    toast.success('Timeslot removed from booking.');
+                    toast.success('Timeslot updated successfully.');
                   }
                   setShowBooking(null);
                   fetchBooked();
@@ -1239,8 +1249,32 @@ useEffect(() => {
                                     onClick={async (e) => {
                                       e.stopPropagation();
                                       try {
-                                        await deleteBooking(range.booking.Booking_id);
-                                        toast.success('Booking deleted.');
+                                        // Remove only the selected timeslot from the booking's timeslot array
+                                        let timeslotArr = [];
+                                        if (range.booking.Timeslot) {
+                                          if (typeof range.booking.Timeslot === 'string') {
+                                            try {
+                                              const parsed = JSON.parse(range.booking.Timeslot);
+                                              if (Array.isArray(parsed.timeslot)) timeslotArr = parsed.timeslot;
+                                            } catch (e) {}
+                                          } else if (typeof range.booking.Timeslot === 'object' && Array.isArray(range.booking.Timeslot.timeslot)) {
+                                            timeslotArr = range.booking.Timeslot.timeslot;
+                                          }
+                                        }
+                                        // Remove the selected timeslot
+                                        timeslotArr = timeslotArr.filter(([start, end]) => !(start === range.start && end === range.end));
+                                        if (timeslotArr.length === 0) {
+                                          await deleteBooking(range.booking.Booking_id);
+                                          toast.success('Booking deleted.');
+                                        } else {
+                                          await editBooking(range.booking.Booking_id, {
+                                            Seat_id: range.booking.Seat_id,
+                                            Timeslot: { timeslot: timeslotArr },
+                                            User_id: range.booking.User_id,
+                                            created_at: range.booking.created_at,
+                                          });
+                                          toast.success('Timeslot removed from booking.');
+                                        }
                                         fetchBooked();
                                         setViewBookingDetails(null);
                                       } catch (err) {
