@@ -532,8 +532,35 @@
   color: white;
   font-size: 1.25rem;
   font-weight: 600;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.5rem;
   text-align: center;
+}
+
+.time-selector-info {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.875rem;
+  text-align: center;
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.duration-display {
+  color: white;
+  font-size: 0.95rem;
+  text-align: center;
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.duration-display strong {
+  font-weight: 600;
+  color: #fff;
 }
 
 .time-inputs-row {

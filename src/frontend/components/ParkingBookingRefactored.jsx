@@ -74,6 +74,87 @@ const ParkingBooking = ({ userId }) => {
     setTimeout(() => setShowToast(false), 3000);
   };
 
+  // Smart handler for start time change
+  const handleStartTimeChange = (e) => {
+    const newStartTime = e.target.value;
+    setStartTime(newStartTime);
+    
+    // Auto-adjust end time if needed
+    if (newStartTime && endTime) {
+      const start = new Date(newStartTime);
+      const end = new Date(endTime);
+      
+      // If end time is before or equal to start time, set it to 2 hours after start
+      if (end <= start) {
+        const newEnd = new Date(start);
+        newEnd.setHours(start.getHours() + 2);
+        
+        // Make sure new end time doesn't exceed max allowed time
+        const maxAllowed = new Date(maxDateTime);
+        if (newEnd > maxAllowed) {
+          setEndTime(maxDateTime);
+        } else {
+          setEndTime(formatDateTimeLocal(newEnd));
+        }
+      }
+      
+      // If duration exceeds 24 hours, cap it
+      const duration = end - start;
+      const maxDuration = 24 * 60 * 60 * 1000;
+      if (duration > maxDuration) {
+        const cappedEnd = new Date(start);
+        cappedEnd.setHours(start.getHours() + 24);
+        
+        const maxAllowed = new Date(maxDateTime);
+        if (cappedEnd > maxAllowed) {
+          setEndTime(maxDateTime);
+        } else {
+          setEndTime(formatDateTimeLocal(cappedEnd));
+        }
+      }
+    } else if (newStartTime && !endTime) {
+      // If no end time set, default to 2 hours after start
+      const start = new Date(newStartTime);
+      const newEnd = new Date(start);
+      newEnd.setHours(start.getHours() + 2);
+      
+      const maxAllowed = new Date(maxDateTime);
+      if (newEnd > maxAllowed) {
+        setEndTime(maxDateTime);
+      } else {
+        setEndTime(formatDateTimeLocal(newEnd));
+      }
+    }
+  };
+
+  // Smart handler for end time change
+  const handleEndTimeChange = (e) => {
+    const newEndTime = e.target.value;
+    setEndTime(newEndTime);
+    
+    // Check if duration exceeds 24 hours and auto-adjust
+    if (startTime && newEndTime) {
+      const start = new Date(startTime);
+      const end = new Date(newEndTime);
+      const duration = end - start;
+      const maxDuration = 24 * 60 * 60 * 1000;
+      
+      if (duration > maxDuration) {
+        // Cap to 24 hours from start
+        const cappedEnd = new Date(start);
+        cappedEnd.setHours(start.getHours() + 24);
+        
+        const maxAllowed = new Date(maxDateTime);
+        if (cappedEnd > maxAllowed) {
+          setEndTime(maxDateTime);
+        } else {
+          setEndTime(formatDateTimeLocal(cappedEnd));
+        }
+        showNotification('Duration capped at 24 hours maximum');
+      }
+    }
+  };
+
   const resolveSlotLabel = (slot) => {
     if (!slot) return '';
     return String(slot.display_label ?? slot.slot_code ?? slot.code ?? slot.name ?? slot.id ?? '');
@@ -307,6 +388,24 @@ const ParkingBooking = ({ userId }) => {
     return slots.filter(slot => slot.vehicle_type === currentView);
   };
 
+  // Calculate booking duration for display
+  const getBookingDuration = () => {
+    if (!startTime || !endTime) return '';
+    
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const diffMs = end - start;
+    
+    if (diffMs <= 0) return '';
+    
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours === 0) return `${minutes} min`;
+    if (minutes === 0) return `${hours} hr`;
+    return `${hours} hr ${minutes} min`;
+  };
+
   const currentSlots = getCurrentSlots();
   const currentSectionTitle = currentView === 'two' ? 'Two Wheeler Parking' : 'Four Wheeler Parking';
   const totalSlots = currentSlots.length;
@@ -337,6 +436,7 @@ const ParkingBooking = ({ userId }) => {
           {/* Time Range Selection */}
           <div className="time-range-selector">
             <h3 className="time-selector-title">Select Your Parking Time</h3>
+            <p className="time-selector-info">📅 You can book for today and tomorrow only (max 24 hours)</p>
             <div className="time-inputs-row">
               <div className="time-input-group">
                 <label htmlFor="startTime">Start Time</label>
@@ -344,7 +444,7 @@ const ParkingBooking = ({ userId }) => {
                   type="datetime-local"
                   id="startTime"
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={handleStartTimeChange}
                   className="time-input"
                   min={minDateTime}
                   max={maxDateTime}
@@ -356,9 +456,9 @@ const ParkingBooking = ({ userId }) => {
                   type="datetime-local"
                   id="endTime"
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
+                  onChange={handleEndTimeChange}
                   className="time-input"
-                  min={minDateTime}
+                  min={startTime || minDateTime}
                   max={maxDateTime}
                 />
               </div>
@@ -370,6 +470,11 @@ const ParkingBooking = ({ userId }) => {
                 {loading ? 'Searching...' : 'Check Availability'}
               </button>
             </div>
+            {getBookingDuration() && (
+              <div className="duration-display">
+                ⏱️ Duration: <strong>{getBookingDuration()}</strong>
+              </div>
+            )}
           </div>
 
           {/* Time Range Banner (shown after search) */}
