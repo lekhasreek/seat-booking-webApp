@@ -136,12 +136,13 @@ const BookingModal = ({
 
   return (
     <div className="booking-modal" style={{
-      maxWidth: 400,
+      maxWidth: 540,
+      // width: '70%',
       margin: '0 auto',
       background: 'linear-gradient(135deg, #f0f4ff 60%, #e0e7ff 100%)',
       borderRadius: 14,
       boxShadow: '0 4px 16px 0 #2563eb18',
-      padding: '32px 28px 24px 28px',
+      // padding: '32px 28px 24px 28px',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -177,33 +178,33 @@ const BookingModal = ({
       <div style={{ width: '100%', marginBottom: 18 }}>
         <label style={{ fontWeight: 600, fontSize: 16, color: '#444', marginBottom: 8, display: 'block' }}>Timeslots</label>
           {timeslots.map((ts, idx) => (
-            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, width: '100%' }}>
-              <label style={{ fontWeight: 500, color: '#2563eb', fontSize: 15 }}>Check-in:</label>
+            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '110px 130px 110px 130px 40px', alignItems: 'center', gap: 0, marginBottom: 10, width: '100%' }}>
+              <label style={{ fontWeight: 500, color: '#2563eb', fontSize: 15, textAlign: 'right', paddingRight: 6 }}>Check-in:</label>
               <input
                 type="time"
                 value={ts.start}
                 onChange={e => handleTimeslotChange(idx, "start", e.target.value)}
-                style={{ border: '1.5px solid #2563eb', borderRadius: 6, padding: '6px 10px', fontSize: 15, width: 90 }}
+                style={{ border: '1.5px solid #2563eb', borderRadius: 6, padding: '6px 12px', fontSize: 16, width: '100%', minWidth: 90, boxSizing: 'border-box' }}
                 disabled={isEdit && timeslots.length > 1}
               />
-              <label style={{ fontWeight: 500, color: '#2563eb', fontSize: 15 }}>Check-out:</label>
+              <label style={{ fontWeight: 500, color: '#2563eb', fontSize: 15, textAlign: 'right', paddingRight: 6 }}>Check-out:</label>
               <input
                 type="time"
                 value={ts.end}
                 onChange={e => handleTimeslotChange(idx, "end", e.target.value)}
-                style={{ border: '1.5px solid #2563eb', borderRadius: 6, padding: '6px 10px', fontSize: 15, width: 90 }}
+                style={{ border: '1.5px solid #2563eb', borderRadius: 6, padding: '6px 12px', fontSize: 16, width: '100%', minWidth: 90, boxSizing: 'border-box' }}
                 disabled={isEdit && timeslots.length > 1}
               />
-              {(!isEdit && idx > 0) && (
+              {(!isEdit && idx > 0) ? (
                 <button
-                  style={{ color: '#e11d48', background: 'none', border: 'none', fontSize: 22, marginLeft: 6, cursor: 'pointer', fontWeight: 700 }}
+                  style={{ color: '#e11d48', background: 'none', border: 'none', fontSize: 22, marginLeft: 0, cursor: 'pointer', fontWeight: 700, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   onClick={() => handleRemoveTimeslot(idx)}
                   title="Remove timeslot"
                   type="button"
                 >
                   &minus;
                 </button>
-              )}
+              ) : <span></span>}
             </div>
           ))}
           {!isEdit && (
