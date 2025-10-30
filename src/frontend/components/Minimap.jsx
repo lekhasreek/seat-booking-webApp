@@ -5,7 +5,7 @@ import FloorLayout from '../../assets/FloorMap.svg';
 // We render the floorplan image then place an SVG overlay with the exact same viewBox
 // containing stroked outlines of the workspace shapes (copied from FloorMap.svg).
 // This ensures the borders align exactly at any display scale.
-const Minimap = ({ currentWorkspace, showEntryIcon = true }) => {
+const Minimap = ({ currentWorkspace, showEntryIcon = true, navigate }) => {
   const svgViewBox = { width: 820, height: 240 };
 
   const svgRef = useRef(null);
@@ -68,7 +68,11 @@ const Minimap = ({ currentWorkspace, showEntryIcon = true }) => {
   }, [currentWorkspace]);
 
   return (
-    <div className="minimap-container">
+      <div 
+        className="minimap-container"
+        onClick={() => navigate && navigate('/seat-booking')}
+        style={{ cursor: 'pointer' }}
+      >
       <img src={FloorLayout} alt="Workspace Floor Layout" className="minimap-image" />
 
       {/* SVG overlay uses same viewBox as the source SVG and sits absolute over the image */}

@@ -11,7 +11,7 @@
 .sectionseats-header {
   position: fixed;
   top: 0;
-  left: 260px;
+  left: 0;
   right: 0;
   height: 80px;
   z-index: 101;
@@ -40,11 +40,64 @@
   box-shadow: none;
   overflow: visible;
 }
+.sectionseats-title-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
 .sectionseats-title {
   font-size: 2rem;
   font-weight: bold;
-  margin-bottom: 1.5rem;
   color: #374151;
+  text-align: center;
+}
+
+.section-nav-arrow {
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #4b5563;
+}
+
+.section-nav-arrow:hover {
+  color: #2563eb;
+}
+
+.section-nav-arrow svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Animation classes */
+.section-slide-left-enter {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+.section-slide-left-enter-active {
+  transform: translateX(0);
+  opacity: 1;
+  transition: all 0.3s ease;
+}
+
+.section-slide-right-enter {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+.section-slide-right-enter-active {
+  transform: translateX(0);
+  opacity: 1;
+  transition: all 0.3s ease;
 }
 .sectionseats-info {
   margin-top: 1.5rem;

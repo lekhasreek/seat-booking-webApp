@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Sidebar.css';
-import MenuBurgerIcon from '../../assets/menu-burger-horizontal-svgrepo-com.svg';
+
 // import FloorMap from '../../assets/FloorMap.svg';
 
 const SECTIONS = [
@@ -57,9 +57,6 @@ const Sidebar = ({ currentSection, onSectionSelect, isOpen: controlledOpen, onCl
 
   return (
     <>
-      <button className="sidebar-burger" onClick={toggleOpen} aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}>
-        <img src={MenuBurgerIcon} alt="Menu" className="sidebar-burger-icon" />
-      </button>
       <aside
         className={`sidebar-container ${isOpen ? 'open' : ''}`}
         ref={sidebarRef}

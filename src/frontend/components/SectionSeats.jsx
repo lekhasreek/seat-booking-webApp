@@ -16,7 +16,6 @@ import Popover from "./Popover.jsx";
 import TimeFilter from "./TimeFilter.jsx";
 
 import CalendarBar from "./CalendarBar.jsx";
-import Sidebar from "./Sidebar.jsx";
 import SectionA from '../../assets/Section-A.svg';
 import SectionB from '../../assets/Section-B.svg';
 import SectionC from '../../assets/Section-C.svg';
@@ -249,27 +248,129 @@ const sectionSVGs = {
 
 
 const SectionSeats = ({ userId }) => {
-  // Always declare selectedDate at the top before any useEffect or usage
+  // State declarations
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [activeSeat, setActiveSeatState] = useState(null);
   const [selectedDateForActive, setSelectedDateForActive] = useState('');
+  const [bookedSeatsMap, setBookedSeatsMap] = useState({});
+  const [seats, setSeats] = useState([]);
+  const [userRole, setUserRole] = useState(null);
+  const [showBooking, setShowBooking] = useState(null);
+  const [selectedSeatsForBooking, setSelectedSeatsForBooking] = useState([]); 
+  const [svgText, setSvgText] = useState(null);
+  const [squareOverlays, setSquareOverlays] = useState([]);
+  const [viewBookingDetails, setViewBookingDetails] = useState(null);
+  const [hoverBookingDetails, setHoverBookingDetails] = useState(null);
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState([]);
+  const [appliedRange, setAppliedRange] = useState({ checkIn: '', checkOut: '' });
+  const [selectedRange, setSelectedRange] = useState({ checkIn: '', checkOut: '' });
+
+  // Refs
+  const activeSubscriptionRef = useRef(null);
+  const seatRefs = useRef({});
+  const svgContainerRef = useRef(null);
+
+  // Router hooks
+  const { sectionId: paramSectionId } = useParams();
+  const navigate = useNavigate();
+  let sectionId = paramSectionId ? paramSectionId.toUpperCase() : paramSectionId;
+
+  // Realtime context
+  const { subscribeToBookings, unsubscribeFromBookings, bookingsBySection } = useRealtime();
+
+  // Navigation handler functions
+  const navigateToSection = (direction) => {
+    const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    const currentIndex = sections.indexOf(sectionId);
+    
+    if (direction === 'next') {
+      const nextIndex = currentIndex >= sections.length - 1 ? 0 : currentIndex + 1;
+      navigate(`/seat-booking/section/${sections[nextIndex]}`);
+    } else {
+      const prevIndex = currentIndex <= 0 ? sections.length - 1 : currentIndex - 1;
+      navigate(`/seat-booking/section/${sections[prevIndex]}`);
+    }
+  };
+
+  // Add keyboard event listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Only handle arrow keys if no input elements are focused
+      if (document.activeElement.tagName === 'INPUT' || 
+          document.activeElement.tagName === 'TEXTAREA' ||
+          document.activeElement.isContentEditable) {
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          navigateToSection('prev');
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          navigateToSection('next');
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sectionId, navigate]);
+  
+  // Navigation handler functions
+  const navigateToNextSection = () => {
+    const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    const currentIndex = sections.indexOf(sectionId);
+    const nextIndex = currentIndex >= sections.length - 1 ? 0 : currentIndex + 1;
+    const nextSection = sections[nextIndex];
+    navigate(`/seat-booking/section/${nextSection}`);
+  };
+
+  const navigateToPrevSection = () => {
+    const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    const currentIndex = sections.indexOf(sectionId);
+    const prevIndex = currentIndex <= 0 ? sections.length - 1 : currentIndex - 1;
+    const prevSection = sections[prevIndex];
+    navigate(`/seat-booking/section/${prevSection}`);
+  };
+
+  // Add keyboard event listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Only handle arrow keys if no input elements are focused
+      if (document.activeElement.tagName === 'INPUT' || 
+          document.activeElement.tagName === 'TEXTAREA' ||
+          document.activeElement.isContentEditable) {
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          navigateToPrevSection();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          navigateToNextSection();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sectionId]); // Re-add listener when sectionId changes
+  
   const setActiveSeat = (seatId, date) => {
     setActiveSeatState(seatId);
     setSelectedDateForActive(date);
   };
-  let { sectionId } = useParams();
-  sectionId = sectionId ? sectionId.toUpperCase() : sectionId;
-  const navigate = useNavigate();
 
-  // Bookings are now specific to date: { [date]: { [seatLabel]: { [timeslot]: bookingObject } } }
-  // Harmonized: always use object mapping for seat bookings
-  const [bookedSeatsMap, setBookedSeatsMap] = useState({});
-
-  // Get real-time context
-  const { subscribeToBookings, unsubscribeFromBookings, bookingsBySection } = useRealtime();
-
-  // Track active subscription
-  const activeSubscriptionRef = useRef(null);
+  // Fetch booked seats from backend for this section and date
 
   // Fetch booked seats from backend for this section and date
 // Fetch booked seats from backend for this section and date
@@ -455,8 +556,6 @@ useEffect(() => {
   };
 }, [sectionId, selectedDate]);
 
-  const [seats, setSeats] = useState([]);
-  const [userRole, setUserRole] = useState(null);
   // Fetch role for current user (if available) so we can enable lead-only features
   useEffect(() => {
     if (!userId) return;
@@ -476,18 +575,6 @@ useEffect(() => {
     })();
     return () => { mounted = false; };
   }, [userId]);
-
-  const [showBooking, setShowBooking] = useState(null);
-  // Multi-select for lead users
-  const [selectedSeatsForBooking, setSelectedSeatsForBooking] = useState([]); // array of seat labels (e.g., 'A1')
-  // Store SVG text for inline rendering
-  const [svgText, setSvgText] = useState(null);
-
-  // Refs for each seat rect or path (including Square-A* paths)
-  const seatRefs = useRef({});
-
-  // Ref for the SVG container
-  const svgContainerRef = useRef(null);
 
   // Log screen coordinates for each seat after render (including Square-A* paths)
   useEffect(() => {
@@ -518,12 +605,6 @@ useEffect(() => {
     return <div className="p-8 text-center text-red-600">Invalid section</div>;
   }
 
-  // Add this state for time slots
-  const [selectedTimeSlots, setSelectedTimeSlots] = useState([]);
-  // Applied time filter (explicitly set by user clicking "Check availability")
-  const [appliedRange, setAppliedRange] = useState({ checkIn: '', checkOut: '' });
-  // Time filter state (HH:MM 24h)
-  const [selectedRange, setSelectedRange] = useState({ checkIn: '', checkOut: '' });
   // Helper to format time like 02:00 -> 2, 14:30 -> 14:30
   const formatCompactTime = (hhmm) => {
     if (!hhmm) return '';
@@ -717,9 +798,6 @@ useEffect(() => {
     return result;
   }
 
-  // State to hold overlays for Square-A* paths
-  const [squareOverlays, setSquareOverlays] = useState([]);
-
   // Extract overlays after SVG is rendered and on resize
   useEffect(() => {
     if (!svgText) return;
@@ -739,15 +817,9 @@ useEffect(() => {
   }, [svgText, seats]);
 
 
-  // Add state for viewing booking details and tooltip
-  const [viewBookingDetails, setViewBookingDetails] = useState(null);
-  const [hoverBookingDetails, setHoverBookingDetails] = useState(null);
-
   return (
     <SeatOverlayContext.Provider value={{ activeSeat, selectedDateForActive, setActiveSeat }}>
       <div className="sectionseats-bg">
-  {/* Sidebar shown only on section view; burger toggles the menu */}
-  <Sidebar currentSection={sectionId} />
         {/* Main Content Area */}
         <div className="sectionseats-main">
           {/* Fixed Header */}
@@ -756,19 +828,6 @@ useEffect(() => {
           </div>
           {/* Scrollable Section View Only */}
           <div className="sectionseats-content">
-
-          {/* Back button to floor layout */}
-          <div className="w-full flex justify-between items-center px-4 py-2">
-            <button
-              onClick={() => navigate('/seat-booking')}
-              className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Floor Layout
-            </button>
-          </div>
 
           {/* CalendarBar controls the selected date for booking */}
           <CalendarBar
@@ -801,9 +860,37 @@ useEffect(() => {
                 </div>
               </div>
             )}
-            <h2 className="sectionseats-title">
-              {sectionId ? `Workspace ${sectionId}` : "Section"}
-            </h2>
+            <div className="sectionseats-title-container">
+              <button 
+                className="section-nav-arrow"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigateToSection('prev');
+                }}
+                title="Previous workspace (←)"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h2 className="sectionseats-title">
+                {sectionId ? `Workspace ${sectionId}` : "Section"}
+              </h2>
+              <button 
+                className="section-nav-arrow"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigateToSection('next');
+                }}
+                title="Next workspace (→)"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
             <div className="sectionseats-svg-container" ref={svgContainerRef}>
             {/* Debug: Display extracted seat data */}
             {/*
@@ -1359,8 +1446,8 @@ useEffect(() => {
             <p className="sectionseats-info">Click a seat to book. Booked seats are shown in grey.</p>
           </div>
           <div className="minimap-wrapper">
-          <Minimap currentWorkspace={sectionId} />
-        </div>
+            <Minimap currentWorkspace={sectionId} navigate={navigate} />
+          </div>
       </div>
     </div>
     </SeatOverlayContext.Provider>
