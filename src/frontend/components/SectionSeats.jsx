@@ -828,38 +828,6 @@ useEffect(() => {
           </div>
           {/* Scrollable Section View Only */}
           <div className="sectionseats-content">
-
-          {/* CalendarBar controls the selected date for booking */}
-          <CalendarBar
-            daysToShow={7}
-            onDateChange={date => {
-              const dateStr = date.toISOString().split('T')[0];
-              setSelectedDate(dateStr);
-              // Always fetch bookings for the selected date, including previous days
-              fetchBooked();
-            }}
-          />
-            <TimeFilter
-              selectedRange={selectedRange}
-              onRangeChange={(r) => setSelectedRange(r)}
-              onApply={() => setAppliedRange(selectedRange)}
-              onClear={() => { setSelectedRange({ checkIn: '', checkOut: '' }); setAppliedRange({ checkIn: '', checkOut: '' }); }}
-            />
-    {appliedRange.checkIn && appliedRange.checkOut && appliedRange.checkOut > appliedRange.checkIn && (
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4, marginBottom: 8 }}>
-                <div style={{
-                  background: '#ecfdf5',
-                  color: '#065f46',
-                  border: '1px solid #a7f3d0',
-                  borderRadius: 9999,
-                  padding: '6px 12px',
-                  fontWeight: 600,
-                  fontSize: 13,
-                }}>
-      Showing filtered availability: {formatCompactTime(appliedRange.checkIn)} – {formatCompactTime(appliedRange.checkOut)}
-                </div>
-              </div>
-            )}
             <div className="sectionseats-title-container">
               <button 
                 className="section-nav-arrow"
@@ -870,7 +838,7 @@ useEffect(() => {
                 }}
                 title="Previous workspace (←)"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
@@ -886,12 +854,14 @@ useEffect(() => {
                 }}
                 title="Next workspace (→)"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
             </div>
-            <div className="sectionseats-svg-container" ref={svgContainerRef}>
+            <div className="sectionseats-layout">
+              <div className="sectionseats-left">
+                <div className="sectionseats-svg-container" ref={svgContainerRef}>
             {/* Debug: Display extracted seat data */}
             {/*
             <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, background: '#fff', border: '1px solid #2563eb', borderRadius: 8, padding: 8, maxHeight: 200, overflow: 'auto', fontSize: 12, minWidth: 180 }}>
@@ -1442,8 +1412,45 @@ useEffect(() => {
               </div>
             </div>
             )}
-          </div>
-            <p className="sectionseats-info">Click a seat to book. Booked seats are shown in grey.</p>
+                </div>
+              </div>
+              <div className="sectionseats-right">
+                <div className="sectionseats-right-row">
+                  <div className="sectionseats-controls">
+                    <CalendarBar
+                      daysToShow={7}
+                      onDateChange={date => {
+                        const dateStr = date.toISOString().split('T')[0];
+                        setSelectedDate(dateStr);
+                        fetchBooked();
+                      }}
+                    />
+                    <TimeFilter
+                      selectedRange={selectedRange}
+                      onRangeChange={(r) => setSelectedRange(r)}
+                      onApply={() => setAppliedRange(selectedRange)}
+                      onClear={() => { setSelectedRange({ checkIn: '', checkOut: '' }); setAppliedRange({ checkIn: '', checkOut: '' }); }}
+                    />
+                    {appliedRange.checkIn && appliedRange.checkOut && appliedRange.checkOut > appliedRange.checkIn && (
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4, marginBottom: 8 }}>
+                        <div style={{
+                          background: '#ecfdf5',
+                          color: '#065f46',
+                          border: '1px solid #a7f3d0',
+                          borderRadius: 9999,
+                          padding: '6px 12px',
+                          fontWeight: 600,
+                          fontSize: 13,
+                        }}>
+                          Showing filtered availability: {formatCompactTime(appliedRange.checkIn)} – {formatCompactTime(appliedRange.checkOut)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <p className="sectionseats-info">Click a seat to book. Booked seats are shown in grey.</p>
+              </div>
+            </div>
           </div>
           <div className="minimap-wrapper">
             <Minimap currentWorkspace={sectionId} navigate={navigate} />

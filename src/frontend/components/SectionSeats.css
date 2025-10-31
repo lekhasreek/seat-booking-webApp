@@ -22,7 +22,7 @@
   padding-right: 32px;
 }
 .sectionseats-content {
-  margin-top: 80px;
+  margin-top: 110px;
   flex: 1;
   overflow-y: auto;
   display: flex;
@@ -33,24 +33,81 @@
 .sectionseats-svg-container {
   position: relative;
   width: 100%;
-  max-width: 800px;
-  aspect-ratio: 16/10;
+  max-width: 800px; /* standard width matching largest workspace */
+  aspect-ratio: 1440 / 1024; /* fixed aspect so container doesn't change */
   background: transparent;
   border-radius: 0;
   box-shadow: none;
   overflow: visible;
+  margin: 12px auto 0; /* center inside left column and push a bit down */
+}
+
+/* New two-column layout for SectionSeats */
+.sectionseats-layout {
+  width: 100%;
+  display: flex;
+  gap: 24px;
+  align-items: center; /* vertically center left SVG within row */
+  justify-content: center;
+  padding: 8px 16px;
+  box-sizing: border-box;
+}
+
+.sectionseats-left {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sectionseats-right {
+  flex: 0 0 420px; /* fixed column so left map changes don't push controls */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 70; /* above minimap if overlap occurs */
+  margin-top: -18px; /* pull controls slightly more up */
+}
+
+.sectionseats-right-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.sectionseats-controls {
+  flex: 1 1 60%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 420px; /* keep controls less wide */
+  width: 100%;
+  margin: 0 auto;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+.sectionseats-minimap {
+  flex: 1 1 40%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .sectionseats-title-container {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  margin-top: 8px;
   margin-bottom: 1.5rem;
   position: relative;
 }
 
 .sectionseats-title {
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: bold;
   color: #374151;
   text-align: center;
@@ -73,8 +130,8 @@
 }
 
 .section-nav-arrow svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 
 /* Animation classes */

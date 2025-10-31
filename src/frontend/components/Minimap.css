@@ -1,16 +1,19 @@
 .minimap-wrapper {
-  position: absolute;
+  position: fixed;
   top: 90px;
   right: 15px;
-  width: 30%; /* Adjusted to occupy the right side */
-  height: 100%;
-  overflow: hidden;
+  width: 260px; /* compact so it doesn't cover controls */
+  height: auto;
+  overflow: visible;
+  z-index: 60;
+  pointer-events: none; /* wrapper doesn't block UI below; inner svg stays clickable */
 }
 
 .minimap-container {
   width: 100%;
   height: auto; /* only wrap the minimap content height */
   position: relative;
+  pointer-events: auto; /* re-enable events inside */
 }
 
 .minimap-image {

@@ -1,8 +1,8 @@
 .calendar-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 24px 0;
+  gap: 6px;
+  margin: 0 0 12px 0;
   justify-content: center;
 }
 .calendar-bar__arrow {
@@ -19,8 +19,8 @@
   justify-content: center;
 }
 .calendar-bar__date {
-  min-width: 110px;
-  padding: 8px 0;
+  min-width: 96px;
+  padding: 6px 0;
   background: #fff;
   border-radius: 12px;
   border: 1px solid #eee;
@@ -28,10 +28,11 @@
   font-weight: 500;
   text-align: center;
   cursor: pointer;
-  margin: 0 4px;
+  margin: 0 3px;
   transition: all 0.15s;
   font-family: Inter, sans-serif;
 }
+.calendar-bar__date:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06) }
 .calendar-bar__date--selected {
   background: #eaf1ff;
   border: 2px solid #2563eb;
@@ -40,9 +41,9 @@
   box-shadow: 0 2px 8px #e0e0e0;
 }
 .calendar-bar__day {
-  font-size: 14px;
+  font-size: 13px;
 }
 .calendar-bar__num {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
 }
