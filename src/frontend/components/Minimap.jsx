@@ -70,8 +70,6 @@ const Minimap = ({ currentWorkspace, showEntryIcon = true, navigate }) => {
   return (
       <div 
         className="minimap-container"
-        onClick={() => navigate && navigate('/seat-booking')}
-        style={{ cursor: 'pointer' }}
       >
       <img src={FloorLayout} alt="Workspace Floor Layout" className="minimap-image" />
 
@@ -81,7 +79,16 @@ const Minimap = ({ currentWorkspace, showEntryIcon = true, navigate }) => {
         viewBox={`0 0 ${svgViewBox.width} ${svgViewBox.height}`}
         preserveAspectRatio="xMinYMin meet"
         className="minimap-overlay"
-        aria-hidden="true"
+        role="button"
+        tabIndex={0}
+        aria-label="Open full floor layout"
+        onClick={() => navigate && navigate('/seat-booking')}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            navigate && navigate('/seat-booking');
+          }
+        }}
       >
         {/* overlay shapes mapped to workspace IDs. Shapes are invisible; pin will mark current workspace */}
         <rect data-workspace="A" x="14" y="19" width="137" height="90" rx="3" className="overlay-shape" />
