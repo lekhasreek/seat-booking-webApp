@@ -1,7 +1,9 @@
 .sectionseats-bg {
   background: #f7fafd;
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
+  overflow: hidden;
+  position: relative;
 }
 .sectionseats-main {
   flex: 1;
@@ -13,44 +15,101 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 80px;
+  height: 70px;
   z-index: 101;
-  background: #f7fafd;
+  background: #ffffff;
   display: flex;
   align-items: center;
-  padding-left: 32px;
-  padding-right: 32px;
+  padding: 0 24px;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 .sectionseats-content {
-  margin-top: 110px;
+  margin-top: 80px;
   flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 0;
+  width: 100%;
+  padding: 24px 0 0;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  z-index: 1;
+}
+
+/* Make the content area scrollable if needed */
+.sectionseats-content {
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+.sectionseats-content::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.sectionseats-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.sectionseats-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.sectionseats-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 .sectionseats-svg-container {
   position: relative;
   width: 100%;
-  max-width: 800px; /* standard width matching largest workspace */
-  aspect-ratio: 1440 / 1024; /* fixed aspect so container doesn't change */
-  background: transparent;
-  border-radius: 0;
-  box-shadow: none;
+  max-width: 800px;
+  height: auto;
+  min-height: 0;
+  background: #ffffff;
+  border-radius: 12px;
   overflow: visible;
-  margin: 12px auto 0; /* center inside left column and push a bit down */
+  margin: 20px auto 0;
+  display: inline-block;
+  line-height: 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  padding: 40px 30px 60px 30px;
+  box-sizing: border-box;
+  transform: translateY(20px);
+}
+
+/* SVG container maintains aspect ratio */
+.sectionseats-svg-container svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
 }
 
 /* New two-column layout for SectionSeats */
 .sectionseats-layout {
   width: 100%;
+  max-width: 1400px;
   display: flex;
   gap: 24px;
-  align-items: center; /* vertically center left SVG within row */
+  align-items: flex-start;
   justify-content: center;
-  padding: 8px 16px;
+  padding: 0 16px 40px;
+  margin: 0 auto;
   box-sizing: border-box;
+  flex-wrap: nowrap;
+  overflow: visible;
+  position: relative;
+  z-index: 2;
+}
+
+/* Ensure the left column doesn't grow beyond content */
+.sectionseats-left {
+  flex: 0 1 auto;
+  position: relative;
+  min-width: 0; /* Allows the container to shrink below content size */
 }
 
 .sectionseats-left {
@@ -61,12 +120,16 @@
 }
 
 .sectionseats-right {
-  flex: 0 0 420px; /* fixed column so left map changes don't push controls */
+  flex: 0 0 380px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  z-index: 70; /* above minimap if overlap occurs */
-  margin-top: -18px; /* pull controls slightly more up */
+  gap: 16px;
+  z-index: 70;
+  position: sticky;
+  top: 90px;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  padding: 8px 8px 24px 0;
 }
 
 .sectionseats-right-row {
@@ -76,18 +139,18 @@
 }
 
 .sectionseats-controls {
-  flex: 1 1 60%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 420px; /* keep controls less wide */
   width: 100%;
-  margin: 0 auto;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 12px 14px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  position: relative;
+  z-index: 10;
 }
 
 .sectionseats-minimap {

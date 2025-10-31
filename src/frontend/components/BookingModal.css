@@ -1,68 +1,151 @@
 .booking-modal {
-  position: absolute;
+  position: fixed;
   left: 50%;
   top: 50%;
-  z-index: 50;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
   background: #fff;
   border: 2px solid #2563eb;
-  border-radius: 8px;
-  padding: 18px;
-  transform: translate(-50%, -50%);
-  min-width: 260px;
-  width: auto;
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 320px;
+  max-width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  box-shadow: 0 4px 24px rgba(9, 91, 190, 0.13);
 }
 .booking-modal-title {
-  margin-bottom: 16px;
-  font-weight: 600;
-  font-size: 18px;
+  margin: 0 0 20px 0;
+  font-weight: 700;
+  font-size: 20px;
+  color: #1e293b;
+  text-align: center;
 }
 .booking-modal-date {
   width: 100%;
-  padding: 6px 10px;
-  margin-bottom: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 10px 12px;
+  margin-bottom: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
   font-size: 15px;
-  background: #f3f4f6;
-  color: #222;
+  background: #f9fafb;
+  color: #1f2937;
   cursor: not-allowed;
+  font-weight: 500;
+  text-align: center;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 .booking-modal-timeslot-label {
-  font-weight: 500;
-  margin-bottom: 4px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
   display: block;
+  color: #374151;
+  font-size: 14px;
+  text-align: center;
+  width: 100%;
 }
 .booking-modal-timeslot-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 20px;
 }
 .booking-modal-timeslot {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.booking-modal-timeslot input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.booking-modal-timeslot button {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.booking-modal-timeslot button:hover {
+  background: #dc2626;
 }
 .booking-modal-book-btn {
   background: #2563eb;
   color: #fff;
   border: none;
-  border-radius: 6px;
-  padding: 7px 18px;
+  border-radius: 8px;
+  padding: 12px 20px;
   font-weight: 600;
-  margin-bottom: 6px;
+  font-size: 15px;
+  margin: 10px 0;
   width: 100%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+.booking-modal-book-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.25);
+}
+
+.booking-modal-book-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 .booking-modal-cancel-btn {
   background: none;
-  color: #2563eb;
-  border: none;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
-  padding: 4px 10px;
+  padding: 8px 16px;
   font-weight: 500;
-  text-decoration: underline;
+  text-decoration: none;
+  margin-top: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  width: 100%;
+}
+
+.booking-modal-cancel-btn:hover {
+  background: #f3f4f6;
+  color: #1d4ed8;
+  border-color: #d1d5db;
+}
+
+/* Add a semi-transparent overlay */
+.booking-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(2px);
 }
