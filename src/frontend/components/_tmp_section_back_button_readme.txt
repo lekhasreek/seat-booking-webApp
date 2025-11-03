@@ -1,0 +1,1 @@
+Temporary: If you don't see the Back button after this change, ensure the dev server is running (`npm run dev`) and clear any persistent CSS overlays. The button is fixed at top-left with z-index 2000 and navigates to /floor-layout.

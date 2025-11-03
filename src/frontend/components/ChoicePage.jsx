@@ -5,6 +5,7 @@ import { getBookingsByUser, editBooking, deleteBooking } from '../services/booki
 import { toast } from 'react-toastify';
 import UserBookingsModal from './UserBookingsModal';
 import BookingModal from './BookingModal';
+import Header from './Header';
 import './ChoicePage.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
@@ -268,10 +269,11 @@ const ChoicePage = () => {
 
   return (
     <div className="choice-page-container">
+      <Header />
       <div className="choice-page-content">
         {/* Header */}
         <div className="choice-page-header">
-          <h1 className="welcome-title">Welcome to <span className="brand-reserve">R</span>eserve<span className="brand-now">N</span>ow</h1>
+          
           <p className="choice-page-subtitle">Your workspace booking dashboard</p>
         </div>
 
@@ -390,7 +392,7 @@ const ChoicePage = () => {
             <div className="dashboard-section quick-actions">
               <h2 className="section-title">Quick Actions</h2>
               <div className="action-buttons">
-                <button className="action-btn seat-action" onClick={() => navigate('/seat-booking')}>
+                <button className="action-btn seat-action" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/seat-booking/section/A'); }}>
                   <div className="action-icon">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -398,7 +400,7 @@ const ChoicePage = () => {
                   </div>
                   <span>Book Seat</span>
                 </button>
-                <button className="action-btn parking-action" onClick={() => navigate('/parking-booking')}>
+                <button className="action-btn parking-action" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/parking-booking'); }}>
                   <div className="action-icon">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />

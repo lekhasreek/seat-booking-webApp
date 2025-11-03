@@ -39,9 +39,11 @@
 
 /* overlay shapes are invisible by default (no fill/stroke) */
 .overlay-shape {
-  fill: none;
+  /* Allow the invisible overlays to receive pointer events so clicks map to workspaces */
+  fill: transparent;
   stroke: none;
   stroke-width: 2;
+  pointer-events: all;
 }
 
 /* active workspace: visual indicator moved to animated pin; keep overlay shapes invisible */

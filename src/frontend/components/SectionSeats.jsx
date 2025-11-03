@@ -4,7 +4,6 @@ import { getBookedSeatsBySectionAndDate, insertBooking } from '../services/booki
 import { deleteBooking, editBooking } from '../services/bookingService.js';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Header from "./Header.jsx";
 import { API_ENDPOINTS } from '../config/api.js';
 import { useRealtime } from '../contexts/RealtimeContext.jsx';
 import Minimap from './Minimap';
@@ -248,6 +247,8 @@ const sectionSVGs = {
 
 
 const SectionSeats = ({ userId }) => {
+  const navigate = useNavigate();
+
   // State declarations
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [activeSeat, setActiveSeatState] = useState(null);
@@ -272,7 +273,6 @@ const SectionSeats = ({ userId }) => {
 
   // Router hooks
   const { sectionId: paramSectionId } = useParams();
-  const navigate = useNavigate();
   let sectionId = paramSectionId ? paramSectionId.toUpperCase() : paramSectionId;
 
   // Realtime context
@@ -820,12 +820,35 @@ useEffect(() => {
   return (
     <SeatOverlayContext.Provider value={{ activeSeat, selectedDateForActive, setActiveSeat }}>
       <div className="sectionseats-bg">
+        {/* Fixed Back button: visible on every section page, top-left */}
+        <button
+          aria-label="Back to floor map"
+          onClick={() => navigate('/choice-page')}
+          style={{
+            position: 'fixed',
+            top: 12,
+            left: 12,
+            zIndex: 2000,
+            background: '#ffffff',
+            border: '1px solid #e5e7eb',
+            padding: '6px 10px',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+            cursor: 'pointer',
+            color: '#111827',
+            fontWeight: 600,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ flex: 'none' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span style={{ fontSize: 14 }}>Back to dashboard</span>
+        </button>
         {/* Main Content Area */}
         <div className="sectionseats-main">
-          {/* Fixed Header */}
-          <div className="sectionseats-header">
-            <Header />
-          </div>
           {/* Scrollable Section View Only */}
           <div className="sectionseats-content">
 
@@ -1119,9 +1142,7 @@ useEffect(() => {
                       // Return the API result so the caller can await and the modal can close after UI update
                       return res;
                     } catch (err) {
-                      toast.error('Failed to book seat: ' + (err?.message || err));
-                      // Rethrow so parent can handle
-                      throw err;
+                      toast.error('Failed to book seat: ' + err.message);
                     }
                   } else {
                     toast.error('Bookings should be made for today only and timeslot must be valid.');
