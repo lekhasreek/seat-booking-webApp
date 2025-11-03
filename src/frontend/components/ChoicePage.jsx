@@ -28,6 +28,14 @@ const ChoicePage = () => {
   const [showQuickBookModal, setShowQuickBookModal] = useState(false);
   const [quickBookSeat, setQuickBookSeat] = useState(null);
 
+  // Quick parking modal state
+  const [showQuickParkingModal, setShowQuickParkingModal] = useState(false);
+  const [quickParkingSlot, setQuickParkingSlot] = useState(null);
+  const [parkingStartTime, setParkingStartTime] = useState('');
+  const [parkingEndTime, setParkingEndTime] = useState('');
+  const [parkingVehicleNumber, setParkingVehicleNumber] = useState('');
+  const [parkingLoading, setParkingLoading] = useState(false);
+
   // Get current user
   useEffect(() => {
     const fetchUser = async () => {
@@ -448,7 +456,17 @@ const ChoicePage = () => {
                       <div 
                         key={idx} 
                         className="recommendation-item" 
-                        onClick={() => navigate('/parking-booking')}
+                        onClick={() => {
+                          // Open inline parking booking modal with defaults
+                          const now = new Date();
+                          const start = new Date(now.getTime() + 60 * 1000); // +1 minute
+                          const end = new Date(start.getTime() + 2 * 60 * 60 * 1000); // +2 hours
+                          setParkingStartTime(start.toISOString());
+                          setParkingEndTime(end.toISOString());
+                          setParkingVehicleNumber('');
+                          setQuickParkingSlot(slot);
+                          setShowQuickParkingModal(true);
+                        }}
                       >
                         <div className="rec-icon parking-rec">
                           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -461,6 +479,66 @@ const ChoicePage = () => {
                         </svg>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Parking Modal (inline on ChoicePage) */}
+              {showQuickParkingModal && quickParkingSlot && (
+                <div className="modal-overlay">
+                  <div className="modal-backdrop" onClick={() => setShowQuickParkingModal(false)}></div>
+                  <div className="modal-content">
+                    <h3 className="modal-title">Book Slot {quickParkingSlot.id}</h3>
+                    <div className="booking-time-display">
+                      <p><strong>Start:</strong> {new Date(parkingStartTime).toLocaleString()}</p>
+                      <p><strong>End:</strong> {new Date(parkingEndTime).toLocaleString()}</p>
+                    </div>
+                    <form onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!userId) {
+                        toast.error('You must be logged in to book');
+                        return;
+                      }
+                      if (!parkingVehicleNumber.trim()) {
+                        toast.error('Vehicle number is required');
+                        return;
+                      }
+                      setParkingLoading(true);
+                      try {
+                        const res = await fetch(`${API_BASE_URL}/api/parking/book`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            slot_id: quickParkingSlot.id,
+                            start_time: new Date(parkingStartTime).toISOString(),
+                            end_time: new Date(parkingEndTime).toISOString(),
+                            vehicle_number: parkingVehicleNumber,
+                            user_id: userId
+                          })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Failed to book slot');
+                        toast.success(`Slot ${quickParkingSlot.id} booked successfully`);
+                        setShowQuickParkingModal(false);
+                        setQuickParkingSlot(null);
+                        // Refresh today's bookings and recommendations
+                        await refreshTodayBookings();
+                      } catch (err) {
+                        console.error('Parking booking error:', err);
+                        toast.error(err.message || 'Failed to book parking slot');
+                      } finally {
+                        setParkingLoading(false);
+                      }
+                    }}>
+                      <div className="form-group">
+                        <label htmlFor="parkingVehicleNumber" className="form-label">Vehicle Number <span className="required">*</span></label>
+                        <input id="parkingVehicleNumber" name="parkingVehicleNumber" className="form-input" placeholder="e.g., TN-01-AB-1234" value={parkingVehicleNumber} onChange={(e) => setParkingVehicleNumber(e.target.value)} required />
+                      </div>
+                      <div className="modal-actions">
+                        <button type="button" className="btn-secondary" onClick={() => setShowQuickParkingModal(false)} disabled={parkingLoading}>Cancel</button>
+                        <button type="submit" className="btn-primary" disabled={parkingLoading}>{parkingLoading ? 'Booking...' : 'Confirm Booking'}</button>
+                      </div>
+                    </form>
                   </div>
                 </div>
               )}
