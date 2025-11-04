@@ -50,6 +50,7 @@ const ChoicePage = () => {
   // Fetch today's bookings (exposed so it can be triggered externally)
   const fetchTodayBookings = async () => {
     if (!userId) return;
+
     try {
       setLoading(true);
       const today = new Date().toISOString().split('T')[0];
@@ -134,7 +135,7 @@ const ChoicePage = () => {
           const parkingRes = await fetch(
             `${API_BASE_URL}/api/parking/availability?from=${now.toISOString()}&to=${endTime.toISOString()}`
           );
-          
+
           if (parkingRes.ok) {
             const parkingData = await parkingRes.json();
             console.log('Parking API response:', parkingData);
@@ -147,7 +148,6 @@ const ChoicePage = () => {
               ? [availableParking[Math.floor(Math.random() * availableParking.length)]]
               : [];
             
-            console.log('Recommended parking:', randomParking);
             setRecommendedParking(randomParking);
           } else {
             console.error('Parking API error:', parkingRes.status);
@@ -187,7 +187,7 @@ const ChoicePage = () => {
       const endpoint = isParking 
         ? `${API_BASE_URL}/api/parking/bookings/${bookingId}`
         : `${API_BASE_URL}/api/bookings/${bookingId}`;
-      
+
       const res = await fetch(endpoint, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -197,7 +197,7 @@ const ChoicePage = () => {
       if (!res.ok) throw new Error('Failed to cancel booking');
       
       toast.success('Booking cancelled successfully');
-      
+
       // Refresh bookings
       await refreshTodayBookings();
     } catch (error) {
@@ -260,23 +260,67 @@ const ChoicePage = () => {
     }
   };
 
+  const handleQuickParkingBook = (slot) => {
+    setQuickParkingSlot(slot);
+    // Calculate a default 8-hour booking time starting now + 1 minute
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 1);
+    const endTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    setParkingStartTime(now.toISOString());
+    setParkingEndTime(endTime.toISOString());
+    setParkingVehicleNumber('');
+    setShowQuickParkingModal(true);
+  };
+
+  const handleQuickParkingSubmit = async () => {
+    if (!userId || !quickParkingSlot || !parkingVehicleNumber) return;
+    setParkingLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/parking/book`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slot_id: quickParkingSlot.id,
+          start_time: parkingStartTime,
+          end_time: parkingEndTime,
+          vehicle_number: parkingVehicleNumber,
+          user_id: userId
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to book slot');
+      }
+
+      toast.success(`Slot ${quickParkingSlot.id} booked successfully`);
+      setShowQuickParkingModal(false);
+      setQuickParkingSlot(null);
+
+      // Refresh today's bookings and recommendations
+      await refreshTodayBookings(); 
+    } catch (err) {
+      console.error('Parking booking error:', err);
+      toast.error(err.message || 'Failed to book parking slot');
+    } finally {
+      setParkingLoading(false);
+    }
+  };
+
   const refreshTodayBookings = async () => {
     if (!userId) return;
-    
     const today = new Date().toISOString().split('T')[0];
     const seatRes = await getBookingsByUser(userId);
     const seatBookings = (seatRes.bookings || []).filter(booking => {
       const bookingDate = (booking.created_at || '').split('T')[0];
       return bookingDate === today;
     });
-
     const parkingRes = await fetch(`${API_BASE_URL}/api/parking/bookings/user/${userId}?active=true`);
     const parkingData = await parkingRes.json();
     const parkingBookings = (parkingData.bookings || []).filter(booking => {
       const startDate = new Date(booking.start_time).toISOString().split('T')[0];
       return startDate === today;
     });
-
     setTodayBookings({ seats: seatBookings, parking: parkingBookings });
   };
 
@@ -288,55 +332,33 @@ const ChoicePage = () => {
       <div className="choice-page-content">
         {/* Header */}
         <div className="choice-page-header">
-          
+          <h1 className="welcome-title">Welcome to <span className="brand-reserve">Reserve</span><span className="brand-now">Now</span></h1>
           <p className="choice-page-subtitle">Your workspace booking dashboard</p>
         </div>
 
-        {/* Choice Cards */}
-        <div className="choice-cards-container">
-          {/* Office Seat Booking Card */}
-          <div 
-            className="choice-card"
-            onClick={() => { console.log('Navigating to /seat-booking'); navigate('/seat-booking'); }}
-            tabIndex={0}
-            role="button"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                console.log('Navigating to /seat-booking via keyboard');
-                navigate('/seat-booking');
-              }
-            }}
-          >
-            <div className="card-content">
-              <div className="card-icon-container">
-                <div className="card-icon-wrapper office-seat-icon">
-                  <svg 
-                    className="card-icon" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24" 
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" 
-                    />
-                  </svg>
-                </div>
-              </div>
-              <h3 className="card-title">Book an Office Seat</h3>
-              <div className="card-cta office-seat-cta">
-                <span>Get Started</span>
-                <svg className="cta-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {/* Dashboard Grid */}
+        <div className="dashboard-grid">
+         
+          {/* My Bookings Today - Left Column */}
+          <div className="dashboard-section my-bookings-section">
+            <div className="section-header">
+              <h2>My Bookings Today</h2>
+              <button 
+                className="view-all-btn"
+                onClick={handleOpenAllBookings}
+              >
+                View All
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
             </div>
 
             {loading ? (
-              <div className="loading-state">Loading...</div>
+              <div className="loading-state">
+                <div className="spinner"></div>
+                <p>Loading bookings...</p>
+              </div>
             ) : totalToday === 0 ? (
               <div className="empty-state">
                 <svg className="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -367,7 +389,6 @@ const ChoicePage = () => {
                               timeslots = booking.Timeslot.timeslot;
                             }
                           } catch (e) {}
-                          
                           return timeslots.map((slot, i) => (
                             <span key={i}>{slot[0]} - {slot[1]}{i < timeslots.length - 1 ? ', ' : ''}</span>
                           ));
@@ -375,20 +396,12 @@ const ChoicePage = () => {
                       </div>
                     </div>
                     <div className="booking-actions">
-                      <button 
-                        className="edit-btn"
-                        onClick={() => handleEditBooking(booking)}
-                        title="Edit booking"
-                      >
+                      <button className="edit-btn" onClick={() => handleEditBooking(booking)} title="Edit booking" >
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
-                      <button 
-                        className="cancel-btn"
-                        onClick={() => handleCancelBooking(booking.Booking_id, false)}
-                        title="Cancel booking"
-                      >
+                      <button className="cancel-btn" onClick={() => handleCancelBooking(booking.Booking_id, false)} title="Cancel booking" >
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -396,7 +409,7 @@ const ChoicePage = () => {
                     </div>
                   </div>
                 ))}
-                
+
                 {todayBookings.parking.map((booking, idx) => (
                   <div key={`parking-${idx}`} className="booking-item parking-booking">
                     <div className="booking-icon">
@@ -405,17 +418,15 @@ const ChoicePage = () => {
                       </svg>
                     </div>
                     <div className="booking-details">
-                      <div className="booking-title">Parking Slot {booking.slot_id}</div>
+                      <div className="booking-title">Slot {booking.slot_id}</div>
                       <div className="booking-meta">
-                        {new Date(booking.start_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} - {new Date(booking.end_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                        <span>{new Date(booking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        {' - '}
+                        <span>{new Date(booking.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     </div>
                     <div className="booking-actions">
-                      <button 
-                        className="cancel-btn"
-                        onClick={() => handleCancelBooking(booking.id, true)}
-                        title="Cancel booking"
-                      >
+                      <button className="cancel-btn" onClick={() => handleCancelBooking(booking.booking_id, true)} title="Cancel parking booking" >
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -433,7 +444,7 @@ const ChoicePage = () => {
             <div className="dashboard-section quick-actions">
               <h2 className="section-title">Quick Actions</h2>
               <div className="action-buttons">
-                <button className="action-btn seat-action" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/seat-booking/section/A'); }}>
+                <button className="action-btn seat-action" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/seat-booking'); }}>
                   <div className="action-icon">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -451,38 +462,28 @@ const ChoicePage = () => {
                 </button>
               </div>
             </div>
-          </div>
 
-          {/* Parking Slot Booking Card */}
-          <div 
-            className="choice-card"
-            onClick={() => { console.log('Navigating to /parking-booking'); navigate('/parking-booking'); }}
-            tabIndex={0}
-            role="button"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                console.log('Navigating to /parking-booking via keyboard');
-                navigate('/parking-booking');
-              }
-            }}
-          >
-            <div className="card-content">
-              <div className="card-icon-container">
-                <div className="card-icon-wrapper parking-slot-icon">
-                  <svg 
-                    className="card-icon" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24" 
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" 
-                    />
-                  </svg>
+            {/* Recommended Seats */}
+            <div className="dashboard-section recommendations">
+              <h2 className="section-title">Available Now</h2>
+              {recommendedSeats.length > 0 && (
+                <div className="recommendation-group">
+                  <h3 className="recommendation-subtitle">Seat</h3>
+                  <div className="recommendation-list">
+                    {recommendedSeats.map((seat, idx) => (
+                      <div key={idx} className="recommendation-item" onClick={() => handleQuickBook(seat)} >
+                        <div className="rec-icon seat-rec">
+                          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <span>Seat {seat.Seat_Number}</span>
+                        <svg className="arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -491,29 +492,15 @@ const ChoicePage = () => {
                   <h3 className="recommendation-subtitle">Parking</h3>
                   <div className="recommendation-list">
                     {recommendedParking.map((slot, idx) => (
-                      <div 
-                        key={idx} 
-                        className="recommendation-item" 
-                        onClick={() => {
-                          // Open inline parking booking modal with defaults
-                          const now = new Date();
-                          const start = new Date(now.getTime() + 60 * 1000); // +1 minute
-                          const end = new Date(start.getTime() + 2 * 60 * 60 * 1000); // +2 hours
-                          setParkingStartTime(start.toISOString());
-                          setParkingEndTime(end.toISOString());
-                          setParkingVehicleNumber('');
-                          setQuickParkingSlot(slot);
-                          setShowQuickParkingModal(true);
-                        }}
-                      >
+                      <div key={idx} className="recommendation-item" onClick={() => handleQuickParkingBook(slot)} >
                         <div className="rec-icon parking-rec">
                           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
-                        <span>Slot {slot.id} ({slot.vehicle_type === 'two' ? '2-Wheeler' : '4-Wheeler'})</span>
+                        <span>Slot {slot.id}</span>
                         <svg className="arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
                       </div>
                     ))}
@@ -521,69 +508,13 @@ const ChoicePage = () => {
                 </div>
               )}
 
-              {/* Quick Parking Modal (inline on ChoicePage) */}
-              {showQuickParkingModal && quickParkingSlot && (
-                <div className="modal-overlay">
-                  <div className="modal-backdrop" onClick={() => setShowQuickParkingModal(false)}></div>
-                  <div className="modal-content">
-                    <h3 className="modal-title">Book Slot {quickParkingSlot.id}</h3>
-                    <div className="booking-time-display">
-                      <p><strong>Start:</strong> {new Date(parkingStartTime).toLocaleString()}</p>
-                      <p><strong>End:</strong> {new Date(parkingEndTime).toLocaleString()}</p>
-                    </div>
-                    <form onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (!userId) {
-                        toast.error('You must be logged in to book');
-                        return;
-                      }
-                      if (!parkingVehicleNumber.trim()) {
-                        toast.error('Vehicle number is required');
-                        return;
-                      }
-                      setParkingLoading(true);
-                      try {
-                        const res = await fetch(`${API_BASE_URL}/api/parking/book`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            slot_id: quickParkingSlot.id,
-                            start_time: new Date(parkingStartTime).toISOString(),
-                            end_time: new Date(parkingEndTime).toISOString(),
-                            vehicle_number: parkingVehicleNumber,
-                            user_id: userId
-                          })
-                        });
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data.error || 'Failed to book slot');
-                        toast.success(`Slot ${quickParkingSlot.id} booked successfully`);
-                        setShowQuickParkingModal(false);
-                        setQuickParkingSlot(null);
-                        // Refresh today's bookings and recommendations
-                        await refreshTodayBookings();
-                      } catch (err) {
-                        console.error('Parking booking error:', err);
-                        toast.error(err.message || 'Failed to book parking slot');
-                      } finally {
-                        setParkingLoading(false);
-                      }
-                    }}>
-                      <div className="form-group">
-                        <label htmlFor="parkingVehicleNumber" className="form-label">Vehicle Number <span className="required">*</span></label>
-                        <input id="parkingVehicleNumber" name="parkingVehicleNumber" className="form-input" placeholder="e.g., TN-01-AB-1234" value={parkingVehicleNumber} onChange={(e) => setParkingVehicleNumber(e.target.value)} required />
-                      </div>
-                      <div className="modal-actions">
-                        <button type="button" className="btn-secondary" onClick={() => setShowQuickParkingModal(false)} disabled={parkingLoading}>Cancel</button>
-                        <button type="submit" className="btn-primary" disabled={parkingLoading}>{parkingLoading ? 'Booking...' : 'Confirm Booking'}</button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-
-              {recommendedSeats.length === 0 && recommendedParking.length === 0 && (
-                <div className="no-recommendations">
-                  <p>No available slots at the moment</p>
+              {recommendedSeats.length === 0 && recommendedParking.length === 0 && !loading && (
+                <div className="empty-state-small">
+                  <svg className="empty-icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p>No immediate availability</p>
+                  <span>Try the main booking pages</span>
                 </div>
               )}
             </div>
@@ -591,11 +522,13 @@ const ChoicePage = () => {
         </div>
       </div>
 
-      {/* Bookings Modal */}
+      {/* Modals */}
       <UserBookingsModal
         isOpen={showAllBookingsModal}
         onClose={() => setShowAllBookingsModal(false)}
         bookings={allBookings}
+        onCancelBooking={handleCancelBooking}
+        onEditBooking={handleEditBooking}
       />
 
       {/* Edit Booking Modal */}
@@ -640,6 +573,47 @@ const ChoicePage = () => {
           onBook={handleQuickBookSubmit}
           isEdit={false}
         />
+      )}
+
+      {/* Quick Parking Modal (inline on ChoicePage) */}
+      {showQuickParkingModal && quickParkingSlot && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setShowQuickParkingModal(false)}></div>
+          <div className="modal-content">
+            <h3 className="modal-title">Book Slot {quickParkingSlot.id}</h3>
+            <div className="booking-time-display">
+              <p><strong>Start:</strong> {new Date(parkingStartTime).toLocaleString()}</p>
+              <p><strong>End:</strong> {new Date(parkingEndTime).toLocaleString()}</p>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); handleQuickParkingSubmit(); }}>
+              <div className="form-group">
+                <label htmlFor="parkingVehicleNumber" className="form-label">Vehicle Number <span className="required">*</span></label>
+                <input
+                  id="parkingVehicleNumber"
+                  name="parkingVehicleNumber"
+                  className="form-input"
+                  placeholder="e.g., TN-01-AB-1234"
+                  value={parkingVehicleNumber}
+                  onChange={(e) => setParkingVehicleNumber(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="modal-actions">
+                <button 
+                  type="button" 
+                  className="secondary-btn" 
+                  onClick={() => setShowQuickParkingModal(false)}
+                  disabled={parkingLoading}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="primary-btn" disabled={parkingLoading}>
+                  {parkingLoading ? 'Booking...' : 'Confirm Booking'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Small Cprime Logo - Bottom Right */}
