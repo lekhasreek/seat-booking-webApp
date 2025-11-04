@@ -1,6 +1,4 @@
-
 import React, { useEffect, useState } from "react";
-import Header from "./Header";
 import { useNavigate } from "react-router-dom";
 import FloorMap from "../../assets/FloorMap.svg";
 import { getBookedSeatsBySectionAndDate } from '../../../backend/bookings';
@@ -56,7 +54,33 @@ const FloorLayout = () => {
   return (
     <div className="floor-layout-container">
       <div className="floor-layout-main">
-        <Header />
+        {/* Styled fixed Back button (top-left) */}
+        <button
+          aria-label="Back to dashboard"
+          onClick={() => navigate('/choice-page')}
+          style={{
+            position: 'fixed',
+            top: 12,
+            left: 12,
+            zIndex: 2000,
+            background: '#ffffff',
+            border: '1px solid #e5e7eb',
+            padding: '6px 10px',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+            cursor: 'pointer',
+            color: '#111827',
+            fontWeight: 600,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ flex: 'none' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span style={{ fontSize: 14 }}>Back to dashboard</span>
+        </button>
         <div className="w-full flex justify-center floor-layout-heading">
           <h1 className="text-3xl font-bold text-gray-800 floor-layout-title">
             Workspace Floor Layout

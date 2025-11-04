@@ -4,10 +4,11 @@ import { getBookedSeatsBySectionAndDate, insertBooking } from '../services/booki
 import { deleteBooking, editBooking } from '../services/bookingService.js';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Header from "./Header.jsx";
 import { API_ENDPOINTS } from '../config/api.js';
 import { useRealtime } from '../contexts/RealtimeContext.jsx';
 import Minimap from './Minimap';
+import { supabase } from '../supabaseClient.js';
+import { findAndBookFirstAvailableSlot } from '../utils/parkingUtils.js';
 
 import './SectionSeats.css';
 
@@ -16,7 +17,6 @@ import Popover from "./Popover.jsx";
 import TimeFilter from "./TimeFilter.jsx";
 
 import CalendarBar from "./CalendarBar.jsx";
-import Sidebar from "./Sidebar.jsx";
 import SectionA from '../../assets/Section-A.svg';
 import SectionB from '../../assets/Section-B.svg';
 import SectionC from '../../assets/Section-C.svg';
@@ -249,27 +249,147 @@ const sectionSVGs = {
 
 
 const SectionSeats = ({ userId }) => {
-  // Always declare selectedDate at the top before any useEffect or usage
+  const navigate = useNavigate();
+
+  // State declarations
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [activeSeat, setActiveSeatState] = useState(null);
   const [selectedDateForActive, setSelectedDateForActive] = useState('');
+  const [bookedSeatsMap, setBookedSeatsMap] = useState({});
+  const [seats, setSeats] = useState([]);
+  const [userRole, setUserRole] = useState(null);
+  const [showBooking, setShowBooking] = useState(null);
+  const [selectedSeatsForBooking, setSelectedSeatsForBooking] = useState([]); 
+  const [svgText, setSvgText] = useState(null);
+  const [squareOverlays, setSquareOverlays] = useState([]);
+  const [viewBookingDetails, setViewBookingDetails] = useState(null);
+  const [hoverBookingDetails, setHoverBookingDetails] = useState(null);
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState([]);
+  const [appliedRange, setAppliedRange] = useState({ checkIn: '', checkOut: '' });
+  const [selectedRange, setSelectedRange] = useState({ checkIn: '', checkOut: '' });
+
+  // Refs
+  const activeSubscriptionRef = useRef(null);
+  const seatRefs = useRef({});
+  const svgContainerRef = useRef(null);
+
+  // Router hooks
+  const { sectionId: paramSectionId } = useParams();
+  let sectionId = paramSectionId ? paramSectionId.toUpperCase() : paramSectionId;
+
+  // Realtime context
+  const { subscribeToBookings, unsubscribeFromBookings, bookingsBySection } = useRealtime();
+
+  // Confirmation modal (centered) — returns a Promise<boolean>
+  const [confirmState, setConfirmState] = useState(null);
+  const confirmResolveRef = useRef(null);
+
+  const showConfirmModal = (title, message) => {
+    return new Promise((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmState({ title, message });
+    });
+  };
+
+  const handleConfirmChoice = (choice) => {
+    if (confirmResolveRef.current) confirmResolveRef.current(choice);
+    setConfirmState(null);
+    confirmResolveRef.current = null;
+  };
+
+  // Navigation handler functions
+  const navigateToSection = (direction) => {
+    const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    const currentIndex = sections.indexOf(sectionId);
+    
+    if (direction === 'next') {
+      const nextIndex = currentIndex >= sections.length - 1 ? 0 : currentIndex + 1;
+      navigate(`/seat-booking/section/${sections[nextIndex]}`);
+    } else {
+      const prevIndex = currentIndex <= 0 ? sections.length - 1 : currentIndex - 1;
+      navigate(`/seat-booking/section/${sections[prevIndex]}`);
+    }
+  };
+
+  // Add keyboard event listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Only handle arrow keys if no input elements are focused
+      if (document.activeElement.tagName === 'INPUT' || 
+          document.activeElement.tagName === 'TEXTAREA' ||
+          document.activeElement.isContentEditable) {
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          navigateToSection('prev');
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          navigateToSection('next');
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sectionId, navigate]);
+  
+  // Navigation handler functions
+  const navigateToNextSection = () => {
+    const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    const currentIndex = sections.indexOf(sectionId);
+    const nextIndex = currentIndex >= sections.length - 1 ? 0 : currentIndex + 1;
+    const nextSection = sections[nextIndex];
+    navigate(`/seat-booking/section/${nextSection}`);
+  };
+
+  const navigateToPrevSection = () => {
+    const sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    const currentIndex = sections.indexOf(sectionId);
+    const prevIndex = currentIndex <= 0 ? sections.length - 1 : currentIndex - 1;
+    const prevSection = sections[prevIndex];
+    navigate(`/seat-booking/section/${prevSection}`);
+  };
+
+  // Add keyboard event listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Only handle arrow keys if no input elements are focused
+      if (document.activeElement.tagName === 'INPUT' || 
+          document.activeElement.tagName === 'TEXTAREA' ||
+          document.activeElement.isContentEditable) {
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          navigateToPrevSection();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          navigateToNextSection();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sectionId]); // Re-add listener when sectionId changes
+  
   const setActiveSeat = (seatId, date) => {
     setActiveSeatState(seatId);
     setSelectedDateForActive(date);
   };
-  let { sectionId } = useParams();
-  sectionId = sectionId ? sectionId.toUpperCase() : sectionId;
-  const navigate = useNavigate();
 
-  // Bookings are now specific to date: { [date]: { [seatLabel]: { [timeslot]: bookingObject } } }
-  // Harmonized: always use object mapping for seat bookings
-  const [bookedSeatsMap, setBookedSeatsMap] = useState({});
-
-  // Get real-time context
-  const { subscribeToBookings, unsubscribeFromBookings, bookingsBySection } = useRealtime();
-
-  // Track active subscription
-  const activeSubscriptionRef = useRef(null);
+  // Fetch booked seats from backend for this section and date
 
   // Fetch booked seats from backend for this section and date
 // Fetch booked seats from backend for this section and date
@@ -455,8 +575,6 @@ useEffect(() => {
   };
 }, [sectionId, selectedDate]);
 
-  const [seats, setSeats] = useState([]);
-  const [userRole, setUserRole] = useState(null);
   // Fetch role for current user (if available) so we can enable lead-only features
   useEffect(() => {
     if (!userId) return;
@@ -476,18 +594,6 @@ useEffect(() => {
     })();
     return () => { mounted = false; };
   }, [userId]);
-
-  const [showBooking, setShowBooking] = useState(null);
-  // Multi-select for lead users
-  const [selectedSeatsForBooking, setSelectedSeatsForBooking] = useState([]); // array of seat labels (e.g., 'A1')
-  // Store SVG text for inline rendering
-  const [svgText, setSvgText] = useState(null);
-
-  // Refs for each seat rect or path (including Square-A* paths)
-  const seatRefs = useRef({});
-
-  // Ref for the SVG container
-  const svgContainerRef = useRef(null);
 
   // Log screen coordinates for each seat after render (including Square-A* paths)
   useEffect(() => {
@@ -518,12 +624,6 @@ useEffect(() => {
     return <div className="p-8 text-center text-red-600">Invalid section</div>;
   }
 
-  // Add this state for time slots
-  const [selectedTimeSlots, setSelectedTimeSlots] = useState([]);
-  // Applied time filter (explicitly set by user clicking "Check availability")
-  const [appliedRange, setAppliedRange] = useState({ checkIn: '', checkOut: '' });
-  // Time filter state (HH:MM 24h)
-  const [selectedRange, setSelectedRange] = useState({ checkIn: '', checkOut: '' });
   // Helper to format time like 02:00 -> 2, 14:30 -> 14:30
   const formatCompactTime = (hhmm) => {
     if (!hhmm) return '';
@@ -717,9 +817,6 @@ useEffect(() => {
     return result;
   }
 
-  // State to hold overlays for Square-A* paths
-  const [squareOverlays, setSquareOverlays] = useState([]);
-
   // Extract overlays after SVG is rendered and on resize
   useEffect(() => {
     if (!svgText) return;
@@ -739,36 +836,52 @@ useEffect(() => {
   }, [svgText, seats]);
 
 
-  // Add state for viewing booking details and tooltip
-  const [viewBookingDetails, setViewBookingDetails] = useState(null);
-  const [hoverBookingDetails, setHoverBookingDetails] = useState(null);
-
   return (
     <SeatOverlayContext.Provider value={{ activeSeat, selectedDateForActive, setActiveSeat }}>
       <div className="sectionseats-bg">
-  {/* Sidebar shown only on section view; burger toggles the menu */}
-  <Sidebar currentSection={sectionId} />
+        {confirmState && (
+          <div style={{ position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.45)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 520, maxWidth: '92vw', background: '#0b1220', color: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 8px 40px rgba(2,6,23,0.6)' }}>
+              <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>{confirmState.title}</div>
+              <div style={{ color: '#d1d5db', whiteSpace: 'pre-wrap', marginBottom: 16 }}>{confirmState.message}</div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                <button onClick={() => handleConfirmChoice(false)} style={{ background: '#064e3b', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 10 }}>Cancel</button>
+                <button onClick={() => handleConfirmChoice(true)} style={{ background: '#c7e0ff', color: '#003a6b', border: 'none', padding: '10px 18px', borderRadius: 999, fontWeight: 700 }}>OK</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Fixed Back button: visible on every section page, top-left */}
+        <button
+          aria-label="Back to floor map"
+          onClick={() => navigate('/choice-page')}
+          style={{
+            position: 'fixed',
+            top: 12,
+            left: 12,
+            zIndex: 2000,
+            background: '#ffffff',
+            border: '1px solid #e5e7eb',
+            padding: '6px 10px',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+            cursor: 'pointer',
+            color: '#111827',
+            fontWeight: 600,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ flex: 'none' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span style={{ fontSize: 14 }}>Back to dashboard</span>
+        </button>
         {/* Main Content Area */}
         <div className="sectionseats-main">
-          {/* Fixed Header */}
-          <div className="sectionseats-header">
-            <Header />
-          </div>
           {/* Scrollable Section View Only */}
           <div className="sectionseats-content">
-
-          {/* Back button to floor layout */}
-          <div className="w-full flex justify-between items-center px-4 py-2">
-            <button
-              onClick={() => navigate('/seat-booking')}
-              className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Floor Layout
-            </button>
-          </div>
 
           {/* CalendarBar controls the selected date for booking */}
           <CalendarBar
@@ -801,9 +914,37 @@ useEffect(() => {
                 </div>
               </div>
             )}
-            <h2 className="sectionseats-title">
-              {sectionId ? `Workspace ${sectionId}` : "Section"}
-            </h2>
+            <div className="sectionseats-title-container">
+              <button 
+                className="section-nav-arrow"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigateToSection('prev');
+                }}
+                title="Previous workspace (←)"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h2 className="sectionseats-title">
+                {sectionId ? `Workspace ${sectionId}` : "Section"}
+              </h2>
+              <button 
+                className="section-nav-arrow"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigateToSection('next');
+                }}
+                title="Next workspace (→)"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
             <div className="sectionseats-svg-container" ref={svgContainerRef}>
             {/* Debug: Display extracted seat data */}
             {/*
@@ -927,6 +1068,7 @@ useEffect(() => {
                 }
               }}
               onBook={async (bookingData) => {
+                let seatToastShown = false;
                 try {
                   const todayStr = new Date().toISOString().split('T')[0];
                   if (selectedDate !== todayStr || !(bookingData.timeslot?.timeslot?.length > 0)) {
@@ -982,14 +1124,154 @@ useEffect(() => {
                       return;
                     }
                     try {
-                        const res = await insertBooking({
-                        created_at: selectedDate,
-                        Seat_id: seatUUID,
-                        Timeslot: { timeslot: bookingData.timeslot.timeslot },
-                        User_id: userId,
-                      });
+                        if (!userId) {
+                          toast.error('User ID not found. Please try logging in again.');
+                          return;
+                        }
 
-                      if (res && Array.isArray(res.inserted)) {
+                        // Check if user has a vehicle number
+                        const { data: userData, error: userError } = await supabase
+                          .from('Users')
+                          .select('Vehicle_Number, Vehicle_Type')
+                          .eq('User_id', userId)
+                          .single();
+
+                        if (userError) {
+                          console.error('Error checking user vehicle info:', userError);
+                          toast.error('Error verifying user vehicle information');
+                          return;
+                        }
+
+                        if (!userData) {
+                          console.error('User data not found:', { userId });
+                          toast.error('User not found. Please log in again.');
+                          return;
+                        }
+
+                        const hasVehicle = !!userData.Vehicle_Number;
+
+                        // Make the seat booking
+                        const res = await insertBooking({
+                          created_at: selectedDate,
+                          Seat_id: seatUUID,
+                          Timeslot: { timeslot: bookingData.timeslot.timeslot },
+                          User_id: userId,
+                        });
+
+                        // Handle successful booking
+                        if (res) {
+                          // Close the booking modal first
+                          setShowBooking(null);
+                          setViewBookingDetails(null);
+
+                          // Only show success toast immediately if user has no vehicle
+                          if (!hasVehicle) {
+                            toast.success(
+                              <div>
+                                <p>Seat booked successfully!</p>
+                                <p style={{ marginTop: '8px', fontSize: '0.9em' }}>
+                                  💺 Seat {currentSeatLabel}<br/>
+                                  ⏰ {bookingData.timeslot.timeslot[0][0]} - {bookingData.timeslot.timeslot[0][1]}
+                                </p>
+                              </div>,
+                              { autoClose: 4000 }
+                            );
+                            window.dispatchEvent(new Event('refreshBookings'));
+                          }
+
+                          // Then handle parking if user has vehicle
+                          if (hasVehicle && bookingData.timeslot?.timeslot?.length > 0) {
+                            const shouldBookParking = await showConfirmModal(
+                              'Would you like to book a parking slot for your vehicle?',
+                              '• Click OK to proceed with parking booking\n• Click Cancel to skip parking booking'
+                            );
+
+                            // If user cancels parking booking, show seat success toast
+                            if (!shouldBookParking) {
+                              toast.success(
+                                <div>
+                                  <p>Seat booked successfully!</p>
+                                  <p style={{ marginTop: '8px', fontSize: '0.9em' }}>
+                                    💺 Seat {currentSeatLabel}<br/>
+                                    ⏰ {bookingData.timeslot.timeslot[0][0]} - {bookingData.timeslot.timeslot[0][1]}
+                                  </p>
+                                </div>,
+                                { autoClose: 4000 }
+                              );
+                              window.dispatchEvent(new Event('refreshBookings'));
+                              return;
+                            }
+
+                            if (shouldBookParking) {
+                              try {
+                                const [startTime, endTime] = bookingData.timeslot.timeslot[0];
+                                let vehicleType;
+                                const vType = String(userData.Vehicle_Type || '').toLowerCase();
+                                if (vType.includes('two') || vType === '2') {
+                                  vehicleType = 'two';
+                                } else if (vType.includes('four') || vType === '4') {
+                                  vehicleType = 'four';
+                                } else {
+                                  console.error('Unexpected vehicle type:', userData.Vehicle_Type);
+                                  throw new Error('Invalid vehicle type');
+                                }
+
+                                const parkingResult = await findAndBookFirstAvailableSlot(
+                                  new Date(`${selectedDate}T${startTime}`).toISOString(),
+                                  new Date(`${selectedDate}T${endTime}`).toISOString(),
+                                  vehicleType,
+                                  userData.Vehicle_Number,
+                                  userId
+                                );
+
+                                if (parkingResult.success) {
+                                  const { displayInfo } = parkingResult;
+                                  toast.success(
+                                    <div>
+                                      <p>Seat and parking booked successfully! 🎉</p>
+                                      <p style={{ marginTop: '12px', fontSize: '0.9em', lineHeight: '1.4' }}>
+                                        💺 Seat {currentSeatLabel}<br/>
+                                        🅿️ {displayInfo.slotLabel} ({displayInfo.vehicleType})<br/>
+                                        ⏰ {bookingData.timeslot.timeslot[0][0]} - {bookingData.timeslot.timeslot[0][1]}
+                                      </p>
+                                    </div>,
+                                    { autoClose: 6000 }
+                                  );
+                                  setShowBooking(null);
+                                  // Notify other pages (dashboard) to refresh bookings immediately
+                                  window.dispatchEvent(new Event('refreshBookings'));
+                                  return;
+                                }
+
+                                // If automatic assignment fails, ask if they want manual selection
+                                const tryManual = await showConfirmModal(
+                                  'Automatic parking assignment failed',
+                                  'Do you want to select a parking slot manually?'
+                                );
+                                if (tryManual) {
+                                  const parkingParams = new URLSearchParams({
+                                    startTime: startTime,
+                                    endTime: endTime,
+                                    date: selectedDate,
+                                    vehicleNumber: userData.Vehicle_Number,
+                                    vehicleType: userData.Vehicle_Type ? String(userData.Vehicle_Type) : ''
+                                  });
+                                  setShowBooking(null);
+                                  navigate(`/parking-booking?${parkingParams.toString()}`);
+                                  return;
+                                }
+                              } catch (error) {
+                                console.error('Error in automatic parking assignment:', error);
+                                toast.info('Automatic parking assignment failed. You can try manual booking from the parking page.');
+                                setShowBooking(null);
+                              }
+                            }
+                          }
+                        }
+
+
+
+                        if (res && Array.isArray(res.inserted)) {
                         // Merge inserted rows into UI state
                         setBookedSeatsMap(prev => {
                           const updated = { ...(prev || {}) };
@@ -1024,17 +1306,11 @@ useEffect(() => {
 
                       if (res && Array.isArray(res.conflicts) && res.conflicts.length > 0) {
                         toast.warn('Some requested timeslots conflicted with existing bookings and were skipped.');
-                      } else {
-                        toast.success('Seat booked successfully');
                       }
-                      setShowBooking(null);
-                      setViewBookingDetails(null);
                       // Return the API result so the caller can await and the modal can close after UI update
                       return res;
                     } catch (err) {
-                      toast.error('Failed to book seat: ' + (err?.message || err));
-                      // Rethrow so parent can handle
-                      throw err;
+                      toast.error('Failed to book seat: ' + err.message);
                     }
                   } else {
                     toast.error('Bookings should be made for today only and timeslot must be valid.');
@@ -1359,8 +1635,8 @@ useEffect(() => {
             <p className="sectionseats-info">Click a seat to book. Booked seats are shown in grey.</p>
           </div>
           <div className="minimap-wrapper">
-          <Minimap currentWorkspace={sectionId} />
-        </div>
+            <Minimap currentWorkspace={sectionId} navigate={navigate} />
+          </div>
       </div>
     </div>
     </SeatOverlayContext.Provider>

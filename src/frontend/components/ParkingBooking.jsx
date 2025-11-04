@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import './ParkingBooking.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import userAvatar from '/user-blue.png';
 import cprimeLogo from '/cprime-logo.png';
 import UserPopover from './UserPopover';
 
 const ParkingBooking = ({ userId }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+
+  // Get time slots from URL parameters
+  const startTime = queryParams.get('startTime') || '';
+  const endTime = queryParams.get('endTime') || '';
+
   // State management
   const [twoWheelerSlots, setTwoWheelerSlots] = useState([]);
   const [fourWheelerSlots, setFourWheelerSlots] = useState([]);
@@ -22,8 +29,8 @@ const ParkingBooking = ({ userId }) => {
   // Form state
   const [formData, setFormData] = useState({
     vehicleNumber: '',
-    startTime: '',
-    vacateTime: ''
+    startTime: startTime || '',
+    vacateTime: endTime || ''
   });
 
   // Show toast notification

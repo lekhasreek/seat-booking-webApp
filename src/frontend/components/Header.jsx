@@ -33,29 +33,10 @@ const Header = () => {
     const navigate = useNavigate();
     return (
         <div className="header-container">
-            {/* Left: Back to dashboard */}
-            <button 
-                className="back-link" 
-                style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    color: '#374151', 
-                    fontSize: '1.05rem', 
-                    fontWeight: 500, 
-                    cursor: 'pointer', 
-                    padding: '0.2rem 0.5rem 0.2rem 0', 
-                    textDecoration: 'none', 
-                    transition: 'color 0.18s' 
-                }} 
-                onClick={() => navigate('/dashboard')}
-                onMouseOver={(e) => e.target.style.color = '#2563eb'}
-                onMouseOut={(e) => e.target.style.color = '#374151'}
-            >
-                &lt; Back to dashboard
-            </button>
+            {/* Left: (removed Back to dashboard button as requested) */}
             
             {/* Center: Title */}
-            <div className="header-title">Workspace Booking</div>
+            <div className="header-title"><h1 className="welcome-title">Welcome to <span className="brand-reserve">R</span>eserve<span className="brand-now">N</span>ow</h1></div>
             
             {/* Right: Logo + Avatar in white box */}
             <div className="header-right-box">
