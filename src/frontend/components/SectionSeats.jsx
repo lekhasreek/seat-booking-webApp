@@ -7,6 +7,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import { API_ENDPOINTS } from '../config/api.js';
 import { useRealtime } from '../contexts/RealtimeContext.jsx';
 import Minimap from './Minimap';
+import { supabase } from '../supabaseClient.js';
+import { findAndBookFirstAvailableSlot } from '../utils/parkingUtils.js';
 
 import './SectionSeats.css';
 
@@ -277,6 +279,23 @@ const SectionSeats = ({ userId }) => {
 
   // Realtime context
   const { subscribeToBookings, unsubscribeFromBookings, bookingsBySection } = useRealtime();
+
+  // Confirmation modal (centered) — returns a Promise<boolean>
+  const [confirmState, setConfirmState] = useState(null);
+  const confirmResolveRef = useRef(null);
+
+  const showConfirmModal = (title, message) => {
+    return new Promise((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmState({ title, message });
+    });
+  };
+
+  const handleConfirmChoice = (choice) => {
+    if (confirmResolveRef.current) confirmResolveRef.current(choice);
+    setConfirmState(null);
+    confirmResolveRef.current = null;
+  };
 
   // Navigation handler functions
   const navigateToSection = (direction) => {
@@ -820,6 +839,18 @@ useEffect(() => {
   return (
     <SeatOverlayContext.Provider value={{ activeSeat, selectedDateForActive, setActiveSeat }}>
       <div className="sectionseats-bg">
+        {confirmState && (
+          <div style={{ position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.45)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 520, maxWidth: '92vw', background: '#0b1220', color: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 8px 40px rgba(2,6,23,0.6)' }}>
+              <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>{confirmState.title}</div>
+              <div style={{ color: '#d1d5db', whiteSpace: 'pre-wrap', marginBottom: 16 }}>{confirmState.message}</div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                <button onClick={() => handleConfirmChoice(false)} style={{ background: '#064e3b', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 10 }}>Cancel</button>
+                <button onClick={() => handleConfirmChoice(true)} style={{ background: '#c7e0ff', color: '#003a6b', border: 'none', padding: '10px 18px', borderRadius: 999, fontWeight: 700 }}>OK</button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Fixed Back button: visible on every section page, top-left */}
         <button
           aria-label="Back to floor map"
@@ -1037,6 +1068,7 @@ useEffect(() => {
                 }
               }}
               onBook={async (bookingData) => {
+                let seatToastShown = false;
                 try {
                   const todayStr = new Date().toISOString().split('T')[0];
                   if (selectedDate !== todayStr || !(bookingData.timeslot?.timeslot?.length > 0)) {
@@ -1092,14 +1124,154 @@ useEffect(() => {
                       return;
                     }
                     try {
-                        const res = await insertBooking({
-                        created_at: selectedDate,
-                        Seat_id: seatUUID,
-                        Timeslot: { timeslot: bookingData.timeslot.timeslot },
-                        User_id: userId,
-                      });
+                        if (!userId) {
+                          toast.error('User ID not found. Please try logging in again.');
+                          return;
+                        }
 
-                      if (res && Array.isArray(res.inserted)) {
+                        // Check if user has a vehicle number
+                        const { data: userData, error: userError } = await supabase
+                          .from('Users')
+                          .select('Vehicle_Number, Vehicle_Type')
+                          .eq('User_id', userId)
+                          .single();
+
+                        if (userError) {
+                          console.error('Error checking user vehicle info:', userError);
+                          toast.error('Error verifying user vehicle information');
+                          return;
+                        }
+
+                        if (!userData) {
+                          console.error('User data not found:', { userId });
+                          toast.error('User not found. Please log in again.');
+                          return;
+                        }
+
+                        const hasVehicle = !!userData.Vehicle_Number;
+
+                        // Make the seat booking
+                        const res = await insertBooking({
+                          created_at: selectedDate,
+                          Seat_id: seatUUID,
+                          Timeslot: { timeslot: bookingData.timeslot.timeslot },
+                          User_id: userId,
+                        });
+
+                        // Handle successful booking
+                        if (res) {
+                          // Close the booking modal first
+                          setShowBooking(null);
+                          setViewBookingDetails(null);
+
+                          // Only show success toast immediately if user has no vehicle
+                          if (!hasVehicle) {
+                            toast.success(
+                              <div>
+                                <p>Seat booked successfully!</p>
+                                <p style={{ marginTop: '8px', fontSize: '0.9em' }}>
+                                  💺 Seat {currentSeatLabel}<br/>
+                                  ⏰ {bookingData.timeslot.timeslot[0][0]} - {bookingData.timeslot.timeslot[0][1]}
+                                </p>
+                              </div>,
+                              { autoClose: 4000 }
+                            );
+                            window.dispatchEvent(new Event('refreshBookings'));
+                          }
+
+                          // Then handle parking if user has vehicle
+                          if (hasVehicle && bookingData.timeslot?.timeslot?.length > 0) {
+                            const shouldBookParking = await showConfirmModal(
+                              'Would you like to book a parking slot for your vehicle?',
+                              '• Click OK to proceed with parking booking\n• Click Cancel to skip parking booking'
+                            );
+
+                            // If user cancels parking booking, show seat success toast
+                            if (!shouldBookParking) {
+                              toast.success(
+                                <div>
+                                  <p>Seat booked successfully!</p>
+                                  <p style={{ marginTop: '8px', fontSize: '0.9em' }}>
+                                    💺 Seat {currentSeatLabel}<br/>
+                                    ⏰ {bookingData.timeslot.timeslot[0][0]} - {bookingData.timeslot.timeslot[0][1]}
+                                  </p>
+                                </div>,
+                                { autoClose: 4000 }
+                              );
+                              window.dispatchEvent(new Event('refreshBookings'));
+                              return;
+                            }
+
+                            if (shouldBookParking) {
+                              try {
+                                const [startTime, endTime] = bookingData.timeslot.timeslot[0];
+                                let vehicleType;
+                                const vType = String(userData.Vehicle_Type || '').toLowerCase();
+                                if (vType.includes('two') || vType === '2') {
+                                  vehicleType = 'two';
+                                } else if (vType.includes('four') || vType === '4') {
+                                  vehicleType = 'four';
+                                } else {
+                                  console.error('Unexpected vehicle type:', userData.Vehicle_Type);
+                                  throw new Error('Invalid vehicle type');
+                                }
+
+                                const parkingResult = await findAndBookFirstAvailableSlot(
+                                  new Date(`${selectedDate}T${startTime}`).toISOString(),
+                                  new Date(`${selectedDate}T${endTime}`).toISOString(),
+                                  vehicleType,
+                                  userData.Vehicle_Number,
+                                  userId
+                                );
+
+                                if (parkingResult.success) {
+                                  const { displayInfo } = parkingResult;
+                                  toast.success(
+                                    <div>
+                                      <p>Seat and parking booked successfully! 🎉</p>
+                                      <p style={{ marginTop: '12px', fontSize: '0.9em', lineHeight: '1.4' }}>
+                                        💺 Seat {currentSeatLabel}<br/>
+                                        🅿️ {displayInfo.slotLabel} ({displayInfo.vehicleType})<br/>
+                                        ⏰ {bookingData.timeslot.timeslot[0][0]} - {bookingData.timeslot.timeslot[0][1]}
+                                      </p>
+                                    </div>,
+                                    { autoClose: 6000 }
+                                  );
+                                  setShowBooking(null);
+                                  // Notify other pages (dashboard) to refresh bookings immediately
+                                  window.dispatchEvent(new Event('refreshBookings'));
+                                  return;
+                                }
+
+                                // If automatic assignment fails, ask if they want manual selection
+                                const tryManual = await showConfirmModal(
+                                  'Automatic parking assignment failed',
+                                  'Do you want to select a parking slot manually?'
+                                );
+                                if (tryManual) {
+                                  const parkingParams = new URLSearchParams({
+                                    startTime: startTime,
+                                    endTime: endTime,
+                                    date: selectedDate,
+                                    vehicleNumber: userData.Vehicle_Number,
+                                    vehicleType: userData.Vehicle_Type ? String(userData.Vehicle_Type) : ''
+                                  });
+                                  setShowBooking(null);
+                                  navigate(`/parking-booking?${parkingParams.toString()}`);
+                                  return;
+                                }
+                              } catch (error) {
+                                console.error('Error in automatic parking assignment:', error);
+                                toast.info('Automatic parking assignment failed. You can try manual booking from the parking page.');
+                                setShowBooking(null);
+                              }
+                            }
+                          }
+                        }
+
+
+
+                        if (res && Array.isArray(res.inserted)) {
                         // Merge inserted rows into UI state
                         setBookedSeatsMap(prev => {
                           const updated = { ...(prev || {}) };
@@ -1134,11 +1306,7 @@ useEffect(() => {
 
                       if (res && Array.isArray(res.conflicts) && res.conflicts.length > 0) {
                         toast.warn('Some requested timeslots conflicted with existing bookings and were skipped.');
-                      } else {
-                        toast.success('Seat booked successfully');
                       }
-                      setShowBooking(null);
-                      setViewBookingDetails(null);
                       // Return the API result so the caller can await and the modal can close after UI update
                       return res;
                     } catch (err) {

@@ -22,6 +22,87 @@ export const checkTimeRangeOverlap = (start1, end1, start2, end2) => {
 };
 
 /**
+ * Find and book the first available parking slot for a time range
+ * @param {string} startTime - Start time (ISO string)
+ * @param {string} endTime - End time (ISO string)
+ * @param {string} vehicleType - Vehicle type ('two' or 'four')
+ * @param {string} vehicleNumber - Vehicle registration number
+ * @param {string} userId - User ID
+ * @returns {Promise<object>} - { success: boolean, slotId?: string, booking?: object, error?: string }
+ */
+export const findAndBookFirstAvailableSlot = async (startTime, endTime, vehicleType, vehicleNumber, userId) => {
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+
+    // 1. First fetch available slots
+    const response = await fetch(
+      `${API_BASE_URL}/api/parking/availability?from=${startTime}&to=${endTime}&vehicleType=${vehicleType}`
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch parking availability');
+    }
+
+    const data = await response.json();
+    const availableSlots = data.slots?.filter(slot => slot.is_available) || [];
+
+    // If no slots available, throw error
+    if (availableSlots.length === 0) {
+      throw new Error('No parking slots available for the selected time');
+    }
+
+    // 2. Try to book the first available slot
+    // Ensure slot matches the vehicle type
+    const slotToBook = availableSlots.find(slot => 
+      String(slot.vehicle_type).toLowerCase() === String(vehicleType).toLowerCase()
+    );
+
+    if (!slotToBook) {
+      throw new Error(`No available slots found for ${vehicleType} wheeler`);
+    }
+    
+    console.log('Attempting to book slot:', { slotId: slotToBook.id, vehicleType, time: { startTime, endTime } });
+    
+    const bookingResponse = await fetch(`${API_BASE_URL}/api/parking/book`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slot_id: slotToBook.id,
+        start_time: startTime,
+        end_time: endTime,
+        vehicle_number: vehicleNumber,
+        user_id: userId
+      })
+    });
+
+    if (!bookingResponse.ok) {
+      throw new Error('Failed to book parking slot');
+    }
+
+    const bookingData = await bookingResponse.json();
+    return {
+      success: true,
+      slotId: slotToBook.id,
+      slotType: slotToBook.vehicle_type,
+      booking: bookingData,
+      displayInfo: {
+        slotLabel: `Slot ${slotToBook.id}`,
+        vehicleType: slotToBook.vehicle_type === 'two' ? 'Two Wheeler' : 'Four Wheeler',
+        startTime: new Date(startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        endTime: new Date(endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      }
+    };
+
+  } catch (error) {
+    console.error('Error in automatic parking slot booking:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to book parking slot'
+    };
+  }
+};
+
+/**
  * Format a date to a readable string
  * @param {Date|string} date - The date to format
  * @param {object} options - Formatting options

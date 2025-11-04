@@ -47,42 +47,49 @@ const ChoicePage = () => {
     fetchUser();
   }, []);
 
-  // Fetch today's bookings
+  // Fetch today's bookings (exposed so it can be triggered externally)
+  const fetchTodayBookings = async () => {
+    if (!userId) return;
+    try {
+      setLoading(true);
+      const today = new Date().toISOString().split('T')[0];
+
+      // Fetch seat bookings
+      const seatRes = await getBookingsByUser(userId);
+      const seatBookings = (seatRes.bookings || []).filter(booking => {
+        const bookingDate = (booking.created_at || '').split('T')[0];
+        return bookingDate === today;
+      });
+
+      // Fetch parking bookings
+      const parkingRes = await fetch(`${API_BASE_URL}/api/parking/bookings/user/${userId}?active=true`);
+      const parkingData = await parkingRes.json();
+      const parkingBookings = (parkingData.bookings || []).filter(booking => {
+        const startDate = new Date(booking.start_time).toISOString().split('T')[0];
+        return startDate === today;
+      });
+
+      setTodayBookings({ seats: seatBookings, parking: parkingBookings });
+    } catch (error) {
+      console.error('Error fetching today\'s bookings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!userId) return;
-
-    const fetchTodayBookings = async () => {
-      try {
-        setLoading(true);
-        const today = new Date().toISOString().split('T')[0];
-
-        // Fetch seat bookings
-        const seatRes = await getBookingsByUser(userId);
-        const seatBookings = (seatRes.bookings || []).filter(booking => {
-          const bookingDate = (booking.created_at || '').split('T')[0];
-          return bookingDate === today;
-        });
-
-        // Fetch parking bookings
-        const parkingRes = await fetch(`${API_BASE_URL}/api/parking/bookings/user/${userId}?active=true`);
-        const parkingData = await parkingRes.json();
-        const parkingBookings = (parkingData.bookings || []).filter(booking => {
-          const startDate = new Date(booking.start_time).toISOString().split('T')[0];
-          return startDate === today;
-        });
-
-        setTodayBookings({ seats: seatBookings, parking: parkingBookings });
-      } catch (error) {
-        console.error('Error fetching today\'s bookings:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchTodayBookings();
     // Refresh every 30 seconds
     const interval = setInterval(fetchTodayBookings, 30000);
     return () => clearInterval(interval);
+  }, [userId]);
+
+  // Listen for external refresh requests (e.g., after auto parking booking)
+  useEffect(() => {
+    const handler = () => fetchTodayBookings();
+    window.addEventListener('refreshBookings', handler);
+    return () => window.removeEventListener('refreshBookings', handler);
   }, [userId]);
 
   // Fetch recommended available seats and parking

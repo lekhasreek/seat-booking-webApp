@@ -42,6 +42,31 @@ app.delete('/api/parking/bookings/:bookingId', parkingAPI.cancelBooking);
 app.get('/api/parking/slots/:slotId/bookings', parkingAPI.getSlotBookings);
 
 // ============================================
+// USER MANAGEMENT ENDPOINTS
+// ============================================
+
+// PATCH /api/users/:userId/vehicle - Update user's vehicle information
+app.patch('/api/users/:userId/vehicle', async (req, res) => {
+  const { userId } = req.params;
+  const { vehicle_holder, vehicle_type } = req.body;
+  
+  try {
+    const { data, error } = await supabase
+      .from('Users')
+      .update({ vehicle_holder, vehicle_type })
+      .eq('User_id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error updating user vehicle info:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // SEAT BOOKING API ENDPOINTS (Existing)
 // ============================================
 

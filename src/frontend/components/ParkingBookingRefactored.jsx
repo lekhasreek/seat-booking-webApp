@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import './ParkingBooking.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import userAvatar from '/user-blue.png';
 import cprimeLogo from '/cprime-logo.png';
 import UserPopover from './UserPopover';
@@ -10,7 +10,14 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000
 
 const ParkingBooking = ({ userId }) => {
   const navigate = useNavigate();
-  
+  const location = useLocation();
+
+  // Parse query params for time slot
+  const queryParams = new URLSearchParams(location.search);
+  const seatStart = queryParams.get('startTime');
+  const seatEnd = queryParams.get('endTime');
+  const seatDate = queryParams.get('date');
+
   // State management
   const [slots, setSlots] = useState([]);
   const [currentView, setCurrentView] = useState('two');
@@ -35,27 +42,39 @@ const ParkingBooking = ({ userId }) => {
     vehicleNumber: '',
   });
 
-  // Initialize default times (next hour to 2 hours from now)
+  // Initialize default times (use seat booking slot if present)
   useEffect(() => {
     const now = new Date();
     const nextHour = new Date(now);
     nextHour.setHours(now.getHours() + 1, 0, 0, 0);
-    
     const twoHoursLater = new Date(nextHour);
     twoHoursLater.setHours(nextHour.getHours() + 2);
 
-    // Set min datetime to now
     setMinDateTime(formatDateTimeLocal(now));
-    
-    // Set max datetime to end of tomorrow
     const endOfTomorrow = new Date(now);
     endOfTomorrow.setDate(now.getDate() + 1);
     endOfTomorrow.setHours(23, 59, 0, 0);
     setMaxDateTime(formatDateTimeLocal(endOfTomorrow));
 
-    setStartTime(formatDateTimeLocal(nextHour));
-    setEndTime(formatDateTimeLocal(twoHoursLater));
-  }, []);
+    // If redirected from seat booking, use those times
+    if (seatStart && seatEnd && seatDate) {
+      // Compose ISO string for datetime-local input
+      const start = new Date(`${seatDate}T${seatStart}`);
+      const end = new Date(`${seatDate}T${seatEnd}`);
+      setStartTime(formatDateTimeLocal(start));
+      setEndTime(formatDateTimeLocal(end));
+    } else {
+      setStartTime(formatDateTimeLocal(nextHour));
+      setEndTime(formatDateTimeLocal(twoHoursLater));
+    }
+  }, [seatStart, seatEnd, seatDate]);
+
+  // After setting start/end time from seat booking, auto-trigger availability search
+  useEffect(() => {
+    if (startTime && endTime && seatStart && seatEnd && seatDate) {
+      setHasSearched(true);
+    }
+  }, [startTime, endTime, seatStart, seatEnd, seatDate]);
 
   // Format date for datetime-local input
   const formatDateTimeLocal = (date) => {
