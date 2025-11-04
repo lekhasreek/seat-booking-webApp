@@ -19,11 +19,12 @@ const ChoicePage = () => {
           {/* Office Seat Booking Card */}
           <div 
             className="choice-card"
-            onClick={() => navigate('/seat-booking')}
+            onClick={() => { console.log('Navigating to /seat-booking'); navigate('/seat-booking'); }}
             tabIndex={0}
             role="button"
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
+                console.log('Navigating to /seat-booking via keyboard');
                 navigate('/seat-booking');
               }
             }}
@@ -60,11 +61,12 @@ const ChoicePage = () => {
           {/* Parking Slot Booking Card */}
           <div 
             className="choice-card"
-            onClick={() => navigate('/parking-booking')}
+            onClick={() => { console.log('Navigating to /parking-booking'); navigate('/parking-booking'); }}
             tabIndex={0}
             role="button"
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
+                console.log('Navigating to /parking-booking via keyboard');
                 navigate('/parking-booking');
               }
             }}
