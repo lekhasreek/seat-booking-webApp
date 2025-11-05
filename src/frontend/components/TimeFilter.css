@@ -7,32 +7,35 @@
   padding: 12px 16px;
   border: 1px solid #e2e8f0;
   width: 100%;
-  max-width: 100%;
-  margin: 0;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  margin-bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
+
 .timefilter-row {
   display: flex;
-  gap: 12px;
-  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
   flex-wrap: nowrap;
-  justify-content: space-between;
-  width: 100%;
+  align-items: flex-start;
 }
+
 .timefilter-group {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  align-items: flex-start;
-  flex: 1;
-  min-width: 120px;
 }
+
 .timefilter-label {
   font-weight: 600;
   color: #475569;
   font-size: 13px;
   letter-spacing: 0.3px;
 }
+
 .timefilter-input {
   padding: 6px 8px;
   border: 1px solid #e2e8f0;
@@ -50,47 +53,52 @@
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
+
 .timefilter-micro {
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  font-size: 0.68rem;
+  padding: 2px 6px;
   background: #f8fafc;
-  color: #334155;
-  font-weight: 500;
-  font-size: 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  color: #64748b;
   cursor: pointer;
-  transition: all 0.1s ease;
+  transition: all 0.2s;
   white-space: nowrap;
-  margin-top: 4px;
-  display: inline-block;
+  height: 36px;
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
 }
 
 .timefilter-micro:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
 }
+
 .timefilter-actions {
   display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
   flex-wrap: nowrap;
-  margin-top: 2px;
-  width: 100%;
 }
+
+.timefilter-primary, .timefilter-outline {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .timefilter-primary {
-  padding: 6px 12px;
-  border-radius: 6px;
   border: 1px solid #2563eb;
   background: #2563eb;
   color: #ffffff;
   font-weight: 500;
-  font-size: 13px;
   cursor: pointer;
   transition: all 0.15s ease;
-  min-width: 100px;
-  text-align: center;
-  white-space: nowrap;
 }
 
 .timefilter-primary:hover {
@@ -111,14 +119,12 @@
   transform: none !important;
   box-shadow: none !important;
 }
+
 .timefilter-outline {
-  padding: 6px 12px;
-  border-radius: 6px;
   border: 1px solid #e2e8f0;
   background: #ffffff;
   color: #334155;
   font-weight: 500;
-  font-size: 13px;
   cursor: pointer;
   transition: all 0.15s ease;
   min-width: 70px;
